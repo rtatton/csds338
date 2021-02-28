@@ -37,7 +37,7 @@ class RequestStream(abc.Iterator, abc.Callable):
 		else:
 			self._rng = np.random.default_rng(self.seed)
 
-	def __call__(self, *args, **kwargs):
+	def __call__(self, *args, **kwargs) -> Result:
 		return next(self)
 
 	def __next__(self) -> Result:
@@ -150,7 +150,7 @@ class RequestStream(abc.Iterator, abc.Callable):
 		"""
 		return random.choice((True, False))
 
-	def sample_block(self, n: int = 1) -> Union[int, Tuple[int]]:
+	def sample_block(self, n: int = 1) -> Union[Block, Tuple[Block]]:
 		def sample():
 			return self._rng.integers(self.blocks)
 
