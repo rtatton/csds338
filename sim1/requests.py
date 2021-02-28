@@ -76,7 +76,7 @@ class RequestStream(abc.Iterator, abc.Callable):
 		if (block := self.sample_block()) in self.allocated:
 			result = False
 		else:
-			if result := random.choice((True, False)):
+			if result := self.sample_allocate(block):
 				self.allocated.add(block)
 		return block, result
 
