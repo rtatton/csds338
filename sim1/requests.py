@@ -32,10 +32,10 @@ class RequestStream(abc.Iterator, abc.Callable):
 		super(RequestStream, self).__init__()
 		self.allocated = set()
 		self.pages = np.array([self.sample_page() for _ in range(self.blocks)])
-		if self.seed is not None:
-			self._rng = np.random.default_rng(self.seed)
-		else:
+		if self.seed is None:
 			self._rng = np.random.default_rng()
+		else:
+			self._rng = np.random.default_rng(self.seed)
 
 	def __call__(self, *args, **kwargs):
 		return next(self)
@@ -75,9 +75,8 @@ class RequestStream(abc.Iterator, abc.Callable):
 		"""
 		if (block := self.sample_block()) in self.allocated:
 			result = False
-		else:
-			if result := self.sample_allocate(block):
-				self.allocated.add(block)
+		elif result := self.sample_allocate(block):
+			self.allocated.add(block)
 		return block, result
 
 	# noinspection PyMethodMayBeStatic
@@ -136,9 +135,8 @@ class RequestStream(abc.Iterator, abc.Callable):
 		if b2 in self.allocated:
 			if b1 in self.allocated:
 				result = False
-			else:
-				if result := self.sample_me_too(b1, b2):
-					self.allocated.add(b1)
+			elif result := self.sample_me_too(b1, b2):
+				self.allocated.add(b1)
 		else:
 			result = False
 		return (b1, b2), result
