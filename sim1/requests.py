@@ -30,12 +30,13 @@ class RequestStream(abc.Iterator, abc.Callable):
 
 	def __attrs_post_init__(self):
 		super(RequestStream, self).__init__()
-		self.allocated = set()
-		self.pages = np.array([self.sample_page() for _ in range(self.blocks)])
 		if self.seed is None:
 			self._rng = np.random.default_rng()
 		else:
 			self._rng = np.random.default_rng(self.seed)
+			random.seed(self.seed)
+		self.allocated = set()
+		self.pages = np.array([self.sample_page() for _ in range(self.blocks)])
 
 	def __call__(self, *args, **kwargs) -> Result:
 		return next(self)
@@ -54,7 +55,7 @@ class RequestStream(abc.Iterator, abc.Callable):
 	# noinspection PyMethodMayBeStatic
 	def sample_page(self):
 		"""A discrete probability distribution over memory block pages."""
-		return random.randint(1, 20)
+		return self._rng.integers(1, 21)
 
 	def sample_request(self) -> Callable:
 		"""A discrete probability distribution over request types."""
