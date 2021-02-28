@@ -122,10 +122,10 @@ class RequestStream(abc.Iterator, abc.Callable):
 		"""Samples 2 blocks and determines if the first should be allocated.
 
 		Notes:
-			Mathematically, the distribution is defined as p(block1 | block2),
-			which represents the probability that block1 will be allocated,
-			given block2 is allocated. The first block is never allocated if
-			either (1) it is already allocated or (2) the second block is free.
+			Mathematically, the distribution is defined as p(b1 | b2), which
+			represents the probability that b1 will be allocated, given b2 is
+			allocated. The first block is never allocated if either (1) it is
+			already allocated or (2) the second block is free.
 
 			The co-domain of the distribution is {True, False}.
 
