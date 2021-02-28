@@ -13,7 +13,8 @@ Result = bool
 # noinspection PyUnresolvedReferences
 @attr.s(slots=True)
 class RequestStream(abc.Iterator, abc.Callable):
-	"""
+	"""A stream of memory block requests.
+
 	Attributes:
 		blocks: Number of memory blocks.
 		seed: Element to set the random seed.
