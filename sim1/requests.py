@@ -81,7 +81,7 @@ class RequestStream(abc.Iterator, abc.Callable):
 		return block, result
 
 	# noinspection PyMethodMayBeStatic
-	def sample_allocate(self, b: Block) -> bool:
+	def sample_allocate(self, b: Block) -> Result:
 		"""A discrete, bimodal, unconditional probability distribution.
 
 		See Also:
@@ -110,7 +110,7 @@ class RequestStream(abc.Iterator, abc.Callable):
 		return block, result
 
 	# noinspection PyMethodMayBeStatic
-	def sample_free(self, b: Block) -> bool:
+	def sample_free(self, b: Block) -> Result:
 		"""A discrete, bimodal, unconditional probability distribution.
 
 		See Also:
@@ -144,7 +144,7 @@ class RequestStream(abc.Iterator, abc.Callable):
 		return (b1, b2), result
 
 	# noinspection PyMethodMayBeStatic
-	def sample_me_too(self, b1: Block, b2: Block) -> bool:
+	def sample_me_too(self, b1: Block, b2: Block) -> Result:
 		"""A discrete, conditional, bimodal probability distribution.
 
 		See Also:
