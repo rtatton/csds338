@@ -1,86 +1,169 @@
 import random
 from collections import abc
-from typing import Any, Callable, Sequence, Set, Union
+from typing import Any, Callable, Sequence, Set, Tuple, Union
 
 import attr
 import numpy as np
 from attr import validators
 
+Block = int
+Result = bool
+
 
 # noinspection PyUnresolvedReferences
 @attr.s(slots=True)
-class RequestGenerator(abc.Callable):
+class RequestStream(abc.Iterator, abc.Callable):
 	"""
 	Attributes:
 		blocks: Number of memory blocks.
-		page: Returns the number of pages for the ith memory block.
-		request: Returns if the ith block should be requested by a process.
 		seed: Element to set the random seed.
 		pages: Number of pages for each block of memory.
 		allocated: Contains all memory blocks that have been allocated.
 	"""
 	blocks = attr.ib(
 		type=int, default=100, validator=validators.instance_of(int))
-	page = attr.ib(
-		type=Callable[[int], int],
-		validator=validators.is_callable(),
-		default=lambda: 10,
-		repr=False)
-	request = attr.ib(
-		type=Callable[[int], bool],
-		validator=validators.is_callable(),
-		default=lambda x: random.choice((True, False)),
-		repr=False)
-	free = attr.ib(
-		type=Callable[[int], bool],
-		validator=validators.is_callable(),
-		default=lambda x: random.choice((True, False)),
-		repr=False)
-	me_too = attr.ib(
-		type=Callable[[int, int], bool],
-		validator=validators.is_callable(),
-		default=lambda x, y: random.choice((True, False)),
-		repr=False)
 	seed = attr.ib(type=Any, default=None)
 	pages = attr.ib(type=Union[Sequence[int], np.ndarray], init=False)
 	allocated = attr.ib(type=Set, init=False)
 	_rng = attr.ib(type=np.random.Generator, init=False)
 
 	def __attrs_post_init__(self):
-		super(RequestGenerator, self).__init__()
+		super(RequestStream, self).__init__()
 		self.allocated = set()
-		self.pages = np.array([self.page() for _ in range(self.blocks)])
+		self.pages = np.array([self.sample_page() for _ in range(self.blocks)])
 		if self.seed is not None:
 			self._rng = np.random.default_rng(self.seed)
 		else:
 			self._rng = np.random.default_rng()
 
 	def __call__(self, *args, **kwargs):
-		activity = random.choice((self.request, self.me_too, self.free))
-		block1 = self._sample_block()
-		if activity is self.me_too:
-			block2 = self._sample_block()
-			result = activity(block1, block2)
-			print(f'MeTooRequest({block1}, {block2}) -> {result}')
-		elif activity is self.request:
-			result = activity(block1)
-			print(f'StandardRequest({block1}) -> {result}')
+		return next(self)
+
+	def __next__(self) -> Result:
+		request = self.sample_request()
+		blocks, result = request()
+		if request == self.me_too:
+			print(f'MeTooRequest({blocks[0]}|{blocks[1]}) -> {result}')
+		elif request == self.allocate:
+			print(f'AllocateRequest({blocks}) -> {result}')
 		else:
-			result = activity(block1)
-			print(f'FreeRequest({block1}) -> {result}')
+			print(f'FreeRequest({blocks}) -> {result}')
 		return result
 
-	def _sample_block(self) -> int:
-		def sample():
-			return self._rng.integers(self.blocks + 1)
+	# noinspection PyMethodMayBeStatic
+	def sample_page(self):
+		"""A discrete probability distribution over memory block pages."""
+		return random.randint(1, 20)
 
-		block = sample()
-		while block in self.allocated:
+	def sample_request(self) -> Callable:
+		"""A discrete probability distribution over request types."""
+		return random.choice((self.allocate, self.me_too, self.free))
+
+	def allocate(self) -> Tuple[Block, Result]:
+		"""Samples a block and determines if it should be allocated.
+
+		Notes:
+			Mathematically, the distribution is defined as p(b), which
+			represents the probability that b will be allocated. A block is
+			never allocated if it is already allocated.
+
+			The co-domain of the distribution is {True, False}.
+
+		See Also:
+			allocate_sample() - defines the probability distribution.
+		"""
+		if (block := self.sample_block()) in self.allocated:
+			result = False
+		else:
+			if result := random.choice((True, False)):
+				self.allocated.add(block)
+		return block, result
+
+	# noinspection PyMethodMayBeStatic
+	def sample_allocate(self, b: Block) -> bool:
+		"""A discrete, bimodal, unconditional probability distribution.
+
+		See Also:
+			allocate() - implements the remaining sampling logic.
+		"""
+		return random.choice((True, False))
+
+	def free(self) -> Tuple[Block, Result]:
+		"""Samples a block and determines if it should be freed.
+
+		Notes:
+			Mathematically, the distribution is defined as p(b), which
+			represents the probability that b will be freed/deallocated,
+			A block is never freed if it is already free.
+
+			The co-domain of the distribution is {True, False}.
+
+		See Also:
+			free_sample() - defines the probability distribution.
+		"""
+		if (block := self.sample_block()) in self.allocated:
+			if result := self.sample_free(block):
+				self.allocated.remove(block)
+		else:
+			result = False
+		return block, result
+
+	# noinspection PyMethodMayBeStatic
+	def sample_free(self, b: Block) -> bool:
+		"""A discrete, bimodal, unconditional probability distribution.
+
+		See Also:
+			free() - implements the remaining sampling logic.
+		"""
+		return random.choice((True, False))
+
+	def me_too(self) -> Tuple[Tuple[Block, Block], Result]:
+		"""Samples 2 blocks and determines if the first should be allocated.
+
+		Notes:
+			Mathematically, the distribution is defined as p(block1 | block2),
+			which represents the probability that block1 will be allocated,
+			given block2 is allocated. The first block is never allocated if
+			either (1) it is already allocated or (2) the second block is free.
+
+			The co-domain of the distribution is {True, False}.
+
+		See Also:
+			me_to_sample() - defines the probability distribution.
+		"""
+		b1, b2 = self.sample_block(2)
+		if b2 in self.allocated:
+			if b1 in self.allocated:
+				result = False
+			else:
+				if result := self.sample_me_too(b1, b2):
+					self.allocated.add(b1)
+		else:
+			result = False
+		return (b1, b2), result
+
+	# noinspection PyMethodMayBeStatic
+	def sample_me_too(self, b1: Block, b2: Block) -> bool:
+		"""A discrete, conditional, bimodal probability distribution.
+
+		See Also:
+			me_too() - implements the remaining sampling logic.
+		"""
+		return random.choice((True, False))
+
+	def sample_block(self, n: int = 1) -> Union[int, Tuple[int]]:
+		def sample():
+			return self._rng.integers(self.blocks)
+
+		if n == 1:
 			block = sample()
+		else:
+			block = tuple(sample() for _ in range(n))
 		return block
 
 
 if __name__ == '__main__':
-	stream = RequestGenerator(blocks=5)
-	for _ in range(5):
-		print(stream())
+	requests = RequestStream(blocks=5)
+	for _ in range(25):
+		requests()
+	print(requests.allocated)
