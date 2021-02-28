@@ -44,11 +44,11 @@ class RequestStream(abc.Iterator, abc.Callable):
 		request = self.sample_request()
 		blocks, result = request()
 		if request == self.me_too:
-			print(f'MeTooRequest({blocks[0]}|{blocks[1]}) -> {result}')
+			print(f'MeToo({blocks[0]}|{blocks[1]}) -> {result}')
 		elif request == self.allocate:
-			print(f'AllocateRequest({blocks}) -> {result}')
+			print(f'Allocate({blocks}) -> {result}')
 		else:
-			print(f'FreeRequest({blocks}) -> {result}')
+			print(f'Free({blocks}) -> {result}')
 		return result
 
 	# noinspection PyMethodMayBeStatic
