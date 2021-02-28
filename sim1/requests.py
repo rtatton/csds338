@@ -1,6 +1,8 @@
+import io
 import random
+import sys
 from collections import abc
-from typing import Any, Callable, Sequence, Set, Tuple, Union
+from typing import Any, Callable, Optional, Sequence, Set, TextIO, Tuple, Union
 
 import attr
 import numpy as np
@@ -20,12 +22,18 @@ class RequestStream(abc.Iterator, abc.Callable):
 		seed: Element to set the random seed.
 		pages: Number of pages for each block of memory.
 		allocated: Contains all memory blocks that have been allocated.
+		std_out: Stream to which request results should be written. If None,
+			results will not be written to any stream.
 	"""
 	blocks = attr.ib(
 		type=int, default=100, validator=validators.instance_of(int))
 	seed = attr.ib(type=Any, default=None)
 	pages = attr.ib(type=Union[Sequence[int], np.ndarray], init=False)
 	allocated = attr.ib(type=Set, init=False)
+	std_out = attr.ib(
+		type=Optional[Union[TextIO, io.TextIOBase]],
+		default=sys.stdout,
+		validator=validators.instance_of((io.TextIOBase, TextIO, type(None))))
 	_rng = attr.ib(type=np.random.Generator, init=False)
 
 	def __attrs_post_init__(self):
@@ -42,14 +50,18 @@ class RequestStream(abc.Iterator, abc.Callable):
 		return next(self)
 
 	def __next__(self) -> Result:
+		def output(x):
+			if self.std_out:
+				print(x, file=self.std_out)
+
 		request = self.sample_request()
 		blocks, result = request()
 		if request == self.me_too:
-			print(f'MeToo({blocks[0]}|{blocks[1]}) -> {result}')
+			output(f'MeToo({blocks[0]}|{blocks[1]}) -> {result}')
 		elif request == self.allocate:
-			print(f'Allocate({blocks}) -> {result}')
+			output(f'Allocate({blocks}) -> {result}')
 		else:
-			print(f'Free({blocks}) -> {result}')
+			output(f'Free({blocks}) -> {result}')
 		return result
 
 	# noinspection PyMethodMayBeStatic
