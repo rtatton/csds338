@@ -2,7 +2,9 @@ import io
 import random
 import sys
 from collections import abc
-from typing import Any, Callable, Optional, Sequence, Set, TextIO, Tuple, Union
+from typing import (
+	Any, Callable, NoReturn, Optional, Sequence, Set, TextIO,
+	Tuple, Union)
 
 import attr
 import numpy as np
@@ -50,18 +52,8 @@ class RequestStream(abc.Iterator, abc.Callable):
 		return next(self)
 
 	def __next__(self) -> Result:
-		def output(x):
-			if self.std_out:
-				print(x, file=self.std_out)
-
 		request = self.sample_request()
-		blocks, result = request()
-		if request == self.me_too:
-			output(f'MeToo({blocks[0]}|{blocks[1]}) -> {result}')
-		elif request == self.allocate:
-			output(f'Allocate({blocks}) -> {result}')
-		else:
-			output(f'Free({blocks}) -> {result}')
+		_, result = request()
 		return result
 
 	# noinspection PyMethodMayBeStatic
@@ -90,6 +82,7 @@ class RequestStream(abc.Iterator, abc.Callable):
 			result = False
 		elif result := self.sample_allocate(block):
 			self.allocated.add(block)
+		self._print('Allocate', block, result)
 		return block, result
 
 	# noinspection PyMethodMayBeStatic
@@ -119,6 +112,7 @@ class RequestStream(abc.Iterator, abc.Callable):
 				self.allocated.remove(block)
 		else:
 			result = False
+		self._print('Free', block, result)
 		return block, result
 
 	# noinspection PyMethodMayBeStatic
@@ -152,6 +146,7 @@ class RequestStream(abc.Iterator, abc.Callable):
 				self.allocated.add(b1)
 		else:
 			result = False
+		self._print('MeToo', f'{b1}|{b2}', result)
 		return (b1, b2), result
 
 	# noinspection PyMethodMayBeStatic
@@ -172,6 +167,10 @@ class RequestStream(abc.Iterator, abc.Callable):
 		else:
 			block = tuple(sample() for _ in range(n))
 		return block
+
+	def _print(self, request_type: str, params: Any, result: Any) -> NoReturn:
+		if self.std_out:
+			print(f'{request_type}({params}) -> {result}', file=self.std_out)
 
 
 if __name__ == '__main__':
