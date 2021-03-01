@@ -29,14 +29,15 @@ class RequestStream(abc.Iterator, abc.Callable):
 	"""
 	blocks = attr.ib(
 		type=int, default=100, validator=validators.instance_of(int))
-	seed = attr.ib(type=Any, default=None)
-	pages = attr.ib(type=Union[Sequence[int], np.ndarray], init=False)
-	allocated = attr.ib(type=Set, init=False)
+	seed = attr.ib(type=Any, default=None, repr=False)
 	std_out = attr.ib(
 		type=Optional[Union[TextIO, io.TextIOBase]],
 		default=sys.stdout,
-		validator=validators.instance_of((io.TextIOBase, TextIO, type(None))))
-	_rng = attr.ib(type=np.random.Generator, init=False)
+		validator=validators.instance_of((io.TextIOBase, TextIO, type(None))),
+		repr=False)
+	pages = attr.ib(type=Union[Sequence[int], np.ndarray], init=False)
+	allocated = attr.ib(type=Set, init=False)
+	_rng = attr.ib(type=np.random.Generator, init=False, repr=False)
 
 	def __attrs_post_init__(self):
 		super(RequestStream, self).__init__()
@@ -174,7 +175,7 @@ class RequestStream(abc.Iterator, abc.Callable):
 
 
 if __name__ == '__main__':
-	requests = RequestStream(blocks=5)
+	requests = RequestStream(5)
 	for _ in range(25):
 		requests()
 	print(requests.allocated)
