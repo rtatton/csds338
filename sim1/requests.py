@@ -77,7 +77,7 @@ class RequestStream(abc.Iterator, abc.Callable):
 			The co-domain of the distribution is {True, False}.
 
 		See Also:
-			allocate_sample() - defines the probability distribution.
+			sample_allocate() - defines the probability distribution.
 		"""
 		if (block := self.sample_block()) in self.allocated:
 			result = False
@@ -106,7 +106,7 @@ class RequestStream(abc.Iterator, abc.Callable):
 			The co-domain of the distribution is {True, False}.
 
 		See Also:
-			free_sample() - defines the probability distribution.
+			sample_free() - defines the probability distribution.
 		"""
 		if (block := self.sample_block()) in self.allocated:
 			if result := self.sample_free(block):
@@ -137,7 +137,7 @@ class RequestStream(abc.Iterator, abc.Callable):
 			The co-domain of the distribution is {True, False}.
 
 		See Also:
-			me_to_sample() - defines the probability distribution.
+			sample_me_too() - defines the probability distribution.
 		"""
 		b1, b2 = self.sample_block(2)
 		if b2 in self.allocated:
