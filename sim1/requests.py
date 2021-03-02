@@ -10,7 +10,9 @@ import attr
 import numpy as np
 from attr import validators
 
+NoneType = type(None)
 Block = int
+Blocks = Union[Block, Tuple[Block, ...]]
 Result = bool
 
 
@@ -33,7 +35,7 @@ class RequestStream(abc.Iterator, abc.Callable):
 	std_out = attr.ib(
 		type=Optional[Union[TextIO, io.TextIOBase]],
 		default=sys.stdout,
-		validator=validators.instance_of((io.TextIOBase, TextIO, type(None))),
+		validator=validators.instance_of((io.TextIOBase, TextIO, NoneType)),
 		repr=False)
 	pages = attr.ib(type=Union[Sequence[int], np.ndarray], init=False)
 	allocated = attr.ib(type=Set, init=False)
@@ -62,7 +64,7 @@ class RequestStream(abc.Iterator, abc.Callable):
 		"""A discrete probability distribution over memory block pages."""
 		return self._rng.integers(1, 21)
 
-	def sample_request(self) -> Callable[[], Tuple[Any, Result]]:
+	def sample_request(self) -> Callable[[], Tuple[Blocks, Result]]:
 		"""A discrete probability distribution over request types."""
 		return random.choice((self.allocate, self.me_too, self.free))
 
@@ -159,7 +161,7 @@ class RequestStream(abc.Iterator, abc.Callable):
 		"""
 		return random.choice((True, False))
 
-	def sample_block(self, n: int = 1) -> Union[Block, Tuple[Block]]:
+	def sample_block(self, n: int = 1) -> Blocks:
 		def sample():
 			return self._rng.integers(self.blocks)
 
