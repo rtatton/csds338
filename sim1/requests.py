@@ -163,11 +163,7 @@ class RequestStream(abc.Iterator, abc.Callable):
 		def sample():
 			return self._rng.integers(self.blocks)
 
-		if n == 1:
-			block = sample()
-		else:
-			block = tuple(sample() for _ in range(n))
-		return block
+		return sample() if n == 1 else tuple(sample() for _ in range(n))
 
 	def _print(self, request_type: str, params: Any, result: Any) -> NoReturn:
 		if self.std_out:
