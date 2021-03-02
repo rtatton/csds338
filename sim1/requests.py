@@ -58,11 +58,11 @@ class RequestStream(abc.Iterator, abc.Callable):
 		return result
 
 	# noinspection PyMethodMayBeStatic
-	def sample_page(self):
+	def sample_page(self) -> int:
 		"""A discrete probability distribution over memory block pages."""
 		return self._rng.integers(1, 21)
 
-	def sample_request(self) -> Callable:
+	def sample_request(self) -> Callable[[], Tuple[..., Result]]:
 		"""A discrete probability distribution over request types."""
 		return random.choice((self.allocate, self.me_too, self.free))
 
