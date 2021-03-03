@@ -3,8 +3,7 @@ import random
 import sys
 from collections import abc
 from typing import (
-	Any, Callable, NoReturn, Optional, Sequence, Set, TextIO,
-	Tuple, Union)
+	Any, Callable, NoReturn, Optional, Sequence, TextIO, Tuple, Union)
 
 import attr
 import numpy as np
@@ -38,7 +37,7 @@ class RequestStream(abc.Iterator, abc.Callable):
 		validator=validators.instance_of((io.TextIOBase, TextIO, NoneType)),
 		repr=False)
 	pages = attr.ib(type=Union[Sequence[int], np.ndarray], init=False)
-	allocated = attr.ib(type=Set, init=False)
+	allocated = attr.ib(type=np.ndarray, init=False)
 	_rng = attr.ib(type=np.random.Generator, init=False, repr=False)
 
 	def __attrs_post_init__(self):
@@ -48,8 +47,8 @@ class RequestStream(abc.Iterator, abc.Callable):
 		else:
 			self._rng = np.random.default_rng(self.seed)
 			random.seed(self.seed)
-		self.allocated = set()
 		self.pages = np.array([self.sample_page() for _ in range(self.blocks)])
+		self.allocated = np.zeros(self.blocks)
 
 	def __call__(self, *args, **kwargs) -> Result:
 		return next(self)
@@ -81,10 +80,12 @@ class RequestStream(abc.Iterator, abc.Callable):
 		See Also:
 			sample_allocate() - defines the probability distribution.
 		"""
-		if (block := self.sample_block()) in self.allocated:
+		block = self.sample_block()
+		if self.allocated[block]:
 			result = False
-		elif result := self.sample_allocate(block):
-			self.allocated.add(block)
+		else:
+			result = self.sample_allocate(block)
+			self.allocated[block] = result
 		self._print('Allocate', block, result)
 		return block, result
 
@@ -110,9 +111,10 @@ class RequestStream(abc.Iterator, abc.Callable):
 		See Also:
 			sample_free() - defines the probability distribution.
 		"""
-		if (block := self.sample_block()) in self.allocated:
-			if result := self.sample_free(block):
-				self.allocated.remove(block)
+		block = self.sample_block()
+		if self.allocated[block]:
+			result = self.sample_free(block)
+			self.allocated[block] = result
 		else:
 			result = False
 		self._print('Free', block, result)
@@ -142,11 +144,12 @@ class RequestStream(abc.Iterator, abc.Callable):
 			sample_me_too() - defines the probability distribution.
 		"""
 		b1, b2 = self.sample_block(2)
-		if b2 in self.allocated:
-			if b1 in self.allocated:
+		if self.allocated[b2]:
+			if self.allocated[b1]:
 				result = False
-			elif result := self.sample_me_too(b1, b2):
-				self.allocated.add(b1)
+			else:
+				result = self.sample_me_too(b1, b2)
+				self.allocated[b1] = result
 		else:
 			result = False
 		self._print('MeToo', f'{b1}|{b2}', result)
@@ -176,4 +179,4 @@ if __name__ == '__main__':
 	requests = RequestStream(5)
 	for _ in range(25):
 		requests()
-	print(requests.allocated)
+	print(requests.pages)
