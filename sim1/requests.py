@@ -39,7 +39,7 @@ class RequestStream(abc.Iterator, abc.Callable):
 		default=sys.stdout,
 		validator=validators.instance_of((io.TextIOBase, TextIO, NoneType)),
 		repr=False)
-	indices = attr.ib(type=np.array, init=False)
+	indices = attr.ib(type=np.array, init=False, repr=False)
 	pages = attr.ib(type=np.ndarray, init=False)
 	available = attr.ib(type=np.ndarray, init=False)
 	_rng = attr.ib(type=np.random.Generator, init=False, repr=False)
