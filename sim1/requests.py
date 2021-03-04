@@ -52,7 +52,7 @@ class RequestStream(abc.Iterator, abc.Callable):
 			self._rng = np.random.default_rng(self.seed)
 		self.indices = np.arange(self.blocks)
 		self.pages = np.array([self.sample_page() for _ in range(self.blocks)])
-		self.available = np.ones(self.blocks)
+		self.available = np.ones(self.blocks, dtype=bool)
 
 	def __call__(self, *args, **kwargs) -> Result:
 		return next(self)
