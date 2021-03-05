@@ -24,7 +24,6 @@ class RequestStream(abc.Iterator, abc.Callable):
 	Attributes:
 		blocks: Number of memory blocks.
 		seed: Element to set the random seed.
-		indices: Identifier of each block of memory.
 		pages: Number of pages for each block of memory.
 		available: Indicator array that tracks if a block is allocated or free.
 		std_out: Stream to which request results should be written. If None,
@@ -39,7 +38,6 @@ class RequestStream(abc.Iterator, abc.Callable):
 		default=sys.stdout,
 		validator=validators.instance_of((io.TextIOBase, TextIO, NoneType)),
 		repr=False)
-	indices = attr.ib(type=np.array, init=False, repr=False)
 	pages = attr.ib(type=np.ndarray, init=False)
 	available = attr.ib(type=np.ndarray, init=False)
 	_rng = attr.ib(type=np.random.Generator, init=False, repr=False)
@@ -50,7 +48,6 @@ class RequestStream(abc.Iterator, abc.Callable):
 			self._rng = np.random.default_rng()
 		else:
 			self._rng = np.random.default_rng(self.seed)
-		self.indices = np.arange(self.blocks)
 		self.pages = np.array([self.sample_page() for _ in range(self.blocks)])
 		self.available = np.ones(self.blocks, dtype=bool)
 
@@ -178,7 +175,7 @@ class RequestStream(abc.Iterator, abc.Callable):
 		self._print('MeToo', f'{to_allocate}|{allocated}', result)
 		return (allocated, to_allocate), result
 
-	def sample_me_too(self, b1: Block, b2: Block) -> Result:
+	def sample_me_too(self, allocated: Block, to_allocate: Block) -> Result:
 		"""A discrete, conditional, bimodal probability distribution.
 
 		See Also:
@@ -205,8 +202,7 @@ class RequestStream(abc.Iterator, abc.Callable):
 		Returns:
 			0 or more sampled blocks.
 		"""
-		mask = ~self.available if allocated else self.available
-		pool = np.flatnonzero(mask * self.indices)
+		pool = np.flatnonzero(~self.available if allocated else self.available)
 		block = self._rng.choice(pool, size=min(n, pool.size), replace=False)
 		if block.size < 1:
 			block = NO_BLOCK
@@ -221,7 +217,6 @@ class RequestStream(abc.Iterator, abc.Callable):
 
 if __name__ == '__main__':
 	requests = RequestStream(5)
-	for _ in range(25):
+	for _ in range(20):
 		requests()
-		print(requests.pages)
-		print(requests.available)
+	print(np.flatnonzero(requests.available))
