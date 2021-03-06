@@ -1,4 +1,5 @@
 import io
+import itertools
 import sys
 from collections import abc
 from typing import (
@@ -51,13 +52,37 @@ class RequestStream(abc.Iterator, abc.Callable):
 		self.pages = np.array([self.sample_page() for _ in range(self.blocks)])
 		self.available = np.ones(self.blocks, dtype=bool)
 
-	def __call__(self, *args, **kwargs) -> Result:
+	def __call__(self, *args, **kwargs) -> Tuple[Blocks, Result]:
 		return next(self)
 
-	def __next__(self) -> Result:
+	def __next__(self) -> Tuple[Blocks, Result]:
 		request = self.sample_request()
-		_, result = request()
-		return result
+		return request()
+
+	@property
+	def num_allocated(self) -> int:
+		"""Returns the number of memory blocks allocated."""
+		return self.available.size - self.num_free
+
+	@property
+	def num_free(self) -> int:
+		"""Returns the number of memory blocks free."""
+		return sum(self.available)
+
+	@property
+	def fragmented(self) -> float:
+		"""Returns the percentage of memory fragmentation.
+
+		References:
+			http://stackoverflow.com/questions/4586972/ddg#4587077
+		"""
+		groups = itertools.groupby(self.available)
+		max_free = max(sum(1 for _ in g) for _, g in groups)
+		num_free = self.num_free
+		return 0 if num_free == 0 else (num_free - max_free) / num_free
+
+	def reset(self) -> NoReturn:
+		self.available = np.ones(self.blocks, dtype=bool)
 
 	def sample_page(self) -> int:
 		"""A discrete probability distribution over memory block pages."""
