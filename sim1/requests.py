@@ -82,6 +82,7 @@ class RequestStream(abc.Iterator, abc.Callable):
 		return 0 if num_free == 0 else (num_free - max_free) / num_free
 
 	def reset(self) -> NoReturn:
+		"""Frees all memory blocks."""
 		self.available = np.ones(self.blocks, dtype=bool)
 
 	def sample_page(self) -> int:
