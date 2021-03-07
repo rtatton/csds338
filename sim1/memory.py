@@ -1,12 +1,14 @@
 import itertools
 from collections import abc
-from typing import Any, NoReturn
+from typing import Any, NoReturn, Tuple, Union
 
 import attr
 import numpy as np
 from attr import validators
 
 NoneType = type(None)
+Block = int
+Blocks = Union[Tuple[np.ndarray, np.ndarray], np.ndarray]
 
 
 # noinspection PyUnresolvedReferences
@@ -49,18 +51,18 @@ class Memory(abc.Sized):
 	def __len__(self) -> int:
 		return self.blocks * self.page_size
 
-	@property
-	def allocated(self) -> np.ndarray:
-		return np.flatnonzero(~self.available)
+	def get_allocated(self, *, with_pages: bool = False) -> Blocks:
+		indices = np.flatnonzero(~self.available)
+		return indices, self.blocks[indices] if with_pages else indices
 
 	@property
 	def num_allocated(self) -> int:
 		"""Returns the number of memory blocks allocated."""
 		return self.available.size - self.num_free
 
-	@property
-	def free(self) -> np.ndarray:
-		return np.flatnonzero(self.available)
+	def get_free(self, *, with_pages: bool = False) -> Blocks:
+		indices = np.flatnonzero(self.available)
+		return indices, self.blocks[indices] if with_pages else indices
 
 	@property
 	def num_free(self) -> int:
@@ -78,6 +80,12 @@ class Memory(abc.Sized):
 		max_free = max(sum(1 for _ in g) for _, g in groups)
 		num_free = self.num_free
 		return 0 if num_free == 0 else (num_free - max_free) / num_free
+
+	def allocate(self, b: Block) -> NoReturn:
+		self.available[b] = False
+
+	def free(self, b: Block) -> NoReturn:
+		self.available[b] = True
 
 	def sample_page(self) -> int:
 		"""A discrete probability distribution over memory block pages."""
