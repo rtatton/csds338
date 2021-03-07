@@ -1,4 +1,5 @@
 import itertools
+from collections import abc
 from typing import Any, NoReturn
 
 import attr
@@ -10,11 +11,12 @@ NoneType = type(None)
 
 # noinspection PyUnresolvedReferences
 @attr.s(slots=True)
-class Memory:
+class Memory(abc.Sized):
 	"""A stream of memory block requests.
 
 	Attributes:
 		blocks: Number of memory blocks.
+		page_size: Size of each page in units of bytes.
 		seed: Element to set the random seed.
 		pages: Number of pages for each block of memory.
 		available: Indicator array that tracks if a block is allocated or free.
@@ -22,10 +24,18 @@ class Memory:
 		"""
 	blocks = attr.ib(
 		type=int, default=100, validator=validators.instance_of(int))
+	page_size = attr.ib(type=int, default=4_000)
 	seed = attr.ib(type=Any, default=None, repr=False)
 	pages = attr.ib(type=np.ndarray, init=False)
 	available = attr.ib(type=np.ndarray, init=False)
 	_rng = attr.ib(type=np.random.Generator, init=False, repr=False)
+
+	@page_size.validator
+	def _check_page_size(self, attribute, value):
+		if not isinstance(value, int):
+			raise TypeError("'page_size' must be type int")
+		elif not 0 < value:
+			raise ValueError("'page_size' must be at least 1")
 
 	def __attrs_post_init__(self):
 		super(Memory, self).__init__()
@@ -35,6 +45,9 @@ class Memory:
 			self._rng = np.random.default_rng(self.seed)
 		self.pages = np.array([self.sample_page() for _ in range(self.blocks)])
 		self.available = np.ones(self.blocks, dtype=bool)
+
+	def __len__(self) -> int:
+		return self.blocks * self.page_size
 
 	@property
 	def allocated(self) -> np.ndarray:
