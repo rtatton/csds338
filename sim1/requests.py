@@ -1,5 +1,4 @@
 import io
-import itertools
 import sys
 from collections import abc
 from typing import (
@@ -9,6 +8,8 @@ import attr
 import numpy as np
 from attr import validators
 
+import memory
+
 NoneType = type(None)
 Block = int
 Blocks = Union[Block, Tuple[Block, ...]]
@@ -17,31 +18,26 @@ TRUE_OR_FALSE = (True, False)
 NO_BLOCK = None
 
 
-
 # noinspection PyUnresolvedReferences
 @attr.s(slots=True)
 class RequestStream(abc.Iterator, abc.Callable):
 	"""A stream of memory block requests.
 
 	Attributes:
-		blocks: Number of memory blocks.
-		seed: Element to set the random seed.
-		pages: Number of pages for each block of memory.
-		available: Indicator array that tracks if a block is allocated or free.
+		memory: Contains all blocks of memory
 		std_out: Stream to which request results should be written. If None,
 			results will not be written to any stream.
+		seed: Element to set the random seed.
 		_rng: Random generator.
 	"""
-	blocks = attr.ib(
-		type=int, default=100, validator=validators.instance_of(int))
-	seed = attr.ib(type=Any, default=None, repr=False)
+	memory = attr.ib(
+		type=memory.Memory, validator=validators.instance_of(memory.Memory))
 	std_out = attr.ib(
 		type=Optional[Union[TextIO, io.TextIOBase]],
 		default=sys.stdout,
 		validator=validators.instance_of((io.TextIOBase, TextIO, NoneType)),
 		repr=False)
-	pages = attr.ib(type=np.ndarray, init=False)
-	available = attr.ib(type=np.ndarray, init=False)
+	seed = attr.ib(type=Any, default=None, repr=False)
 	_rng = attr.ib(type=np.random.Generator, init=False, repr=False)
 
 	def __attrs_post_init__(self):
@@ -50,8 +46,6 @@ class RequestStream(abc.Iterator, abc.Callable):
 			self._rng = np.random.default_rng()
 		else:
 			self._rng = np.random.default_rng(self.seed)
-		self.pages = np.array([self.sample_page() for _ in range(self.blocks)])
-		self.available = np.ones(self.blocks, dtype=bool)
 
 	def __call__(self, *args, **kwargs) -> Tuple[Blocks, Result]:
 		return next(self)
@@ -60,45 +54,15 @@ class RequestStream(abc.Iterator, abc.Callable):
 		request = self.sample_request()
 		return request()
 
-	@property
-	def num_allocated(self) -> int:
-		"""Returns the number of memory blocks allocated."""
-		return self.available.size - self.num_free
-
-	@property
-	def num_free(self) -> int:
-		"""Returns the number of memory blocks free."""
-		return sum(self.available)
-
-	@property
-	def fragmented(self) -> float:
-		"""Returns the percentage of memory fragmentation.
-
-		References:
-			http://stackoverflow.com/questions/4586972/ddg#4587077
-		"""
-		groups = itertools.groupby(self.available)
-		max_free = max(sum(1 for _ in g) for _, g in groups)
-		num_free = self.num_free
-		return 0 if num_free == 0 else (num_free - max_free) / num_free
-
-	def reset(self) -> NoReturn:
-		"""Frees all memory blocks."""
-		self.available = np.ones(self.blocks, dtype=bool)
-
-	def sample_page(self) -> int:
-		"""A discrete probability distribution over memory block pages."""
-		return self._rng.integers(1, 21)
-
 	def sample_request(self) -> Callable[[], Tuple[Blocks, Result]]:
 		"""A discrete probability distribution over request types.
 
 		Returns:
 			A request callable.
 		"""
-		if all(self.available):
+		if not self.memory.num_allocated:
 			request = self.allocate
-		elif not any(self.available):
+		elif not self.memory.num_free:
 			request = self.free
 		else:
 			request = self._rng.choice((self.allocate, self.free, self.me_too))
@@ -120,6 +84,7 @@ class RequestStream(abc.Iterator, abc.Callable):
 		Returns:
 			The sampled block and the result if the sampling occurred.
 		"""
+		# TODO Refactor updating memory to algorithm
 		if (block := self.sample_block(allocated=False)) is NO_BLOCK:
 			result = False
 		elif result := self.sample_allocate(block):
@@ -154,6 +119,7 @@ class RequestStream(abc.Iterator, abc.Callable):
 		Returns:
 			The sampled block and the result if the sampling occurred.
 		"""
+		# TODO Refactor updating memory to algorithm
 		if (block := self.sample_block(allocated=True)) is NO_BLOCK:
 			result = False
 		elif result := self.sample_free(block):
@@ -193,6 +159,7 @@ class RequestStream(abc.Iterator, abc.Callable):
 		Returns:
 			The 2 sampled blocks and the result if the sampling occurred.
 		"""
+		# TODO Refactor updating memory to algorithm
 		allocated = self.sample_block(allocated=True)
 		to_allocate = self.sample_block(allocated=False)
 		if allocated is NO_BLOCK or to_allocate is NO_BLOCK:
@@ -229,7 +196,7 @@ class RequestStream(abc.Iterator, abc.Callable):
 		Returns:
 			0 or more sampled blocks.
 		"""
-		pool = np.flatnonzero(~self.available if allocated else self.available)
+		pool = self.memory.get_allocated if allocated else self.memory.get_free
 		block = self._rng.choice(pool, size=min(n, pool.size), replace=False)
 		if block.size < 1:
 			block = NO_BLOCK
@@ -243,7 +210,7 @@ class RequestStream(abc.Iterator, abc.Callable):
 
 
 if __name__ == '__main__':
-	requests = RequestStream(5)
+	mem = memory.Memory(100)
+	requests = RequestStream(mem)
 	for _ in range(20):
 		requests()
-	print(np.flatnonzero(requests.available))
