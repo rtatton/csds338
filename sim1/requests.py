@@ -17,6 +17,7 @@ TRUE_OR_FALSE = (True, False)
 NO_BLOCK = None
 
 
+
 # noinspection PyUnresolvedReferences
 @attr.s(slots=True)
 class RequestStream(abc.Iterator, abc.Callable):
