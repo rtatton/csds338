@@ -44,7 +44,7 @@ class Memory(abc.Sized):
 
 	def get_allocated(self, *, with_pages: bool = False) -> Blocks:
 		indices = np.flatnonzero(~self.available)
-		return indices, self.blocks[indices] if with_pages else indices
+		return (indices, self.blocks[indices]) if with_pages else indices
 
 	@property
 	def num_allocated(self) -> int:
@@ -53,7 +53,7 @@ class Memory(abc.Sized):
 
 	def get_free(self, *, with_pages: bool = False) -> Blocks:
 		indices = np.flatnonzero(self.available)
-		return indices, self.blocks[indices] if with_pages else indices
+		return (indices, self.blocks[indices]) if with_pages else indices
 
 	@property
 	def num_free(self) -> int:
