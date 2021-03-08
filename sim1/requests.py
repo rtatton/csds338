@@ -88,7 +88,7 @@ class RequestStream(abc.Iterator, abc.Callable):
 		if (block := self.sample_block(allocated=False)) is NO_BLOCK:
 			result = False
 		elif result := self.sample_allocate(block):
-			self.available[block] = False
+			self.memory.allocate(block)
 		self._print('Allocate', block, result)
 		return block, result
 
@@ -123,7 +123,7 @@ class RequestStream(abc.Iterator, abc.Callable):
 		if (block := self.sample_block(allocated=True)) is NO_BLOCK:
 			result = False
 		elif result := self.sample_free(block):
-			self.available[block] = True
+			self.memory.free(block)
 		self._print('Free', block, result)
 		return block, result
 
@@ -165,7 +165,7 @@ class RequestStream(abc.Iterator, abc.Callable):
 		if allocated is NO_BLOCK or to_allocate is NO_BLOCK:
 			result = False
 		elif result := self.sample_me_too(allocated, to_allocate):
-			self.available[to_allocate] = False
+			self.memory.allocate(to_allocate)
 		self._print('MeToo', f'{to_allocate}|{allocated}', result)
 		return (allocated, to_allocate), result
 
@@ -196,7 +196,10 @@ class RequestStream(abc.Iterator, abc.Callable):
 		Returns:
 			0 or more sampled blocks.
 		"""
-		pool = self.memory.get_allocated if allocated else self.memory.get_free
+		if allocated:
+			pool = self.memory.get_allocated()
+		else:
+			pool = self.memory.get_free()
 		block = self._rng.choice(pool, size=min(n, pool.size), replace=False)
 		if block.size < 1:
 			block = NO_BLOCK
