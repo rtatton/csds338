@@ -1,3 +1,44 @@
+import attr
+from attr import validators
+
+import memory
+from requests import Block, Request
+
+NO_BLOCK = None
+NoneType = type(None)
+
+
+# noinspection PyUnresolvedReferences
+@attr.s(slots=True)
+class Algorithm:
+	"""
+	Attributes:
+		memory: Contains all blocks of memory
+	"""
+	memory = attr.ib(
+		type=memory.Memory, validator=validators.instance_of(memory.Memory))
+	std_out = attr.ib(
+		type=Optional[Union[TextIO, io.TextIOBase]],
+		default=sys.stdout,
+		validator=validators.instance_of((io.TextIOBase, TextIO, NoneType)),
+		repr=False)
+
+	def decide(self, request: Request):
+		pass
+
+	def allocate(self, block: Block):
+		self.memory.allocate(block)
+		self._print('Allocate', block)
+
+	def free(self, block: Block):
+		self.memory.free(block)
+		self._print('Free', block)
+
+	def _print(self, request_type: str, params: Any) -> NoReturn:
+		if self.std_out:
+			print(f'{request_type}({params})', file=self.std_out)
+
+
 # Function to allocate memory to
 # blocks as per First fit algorithm
 def firstFit(blockSize, m, processSize, n):
@@ -52,7 +93,7 @@ def bestFit(blockSize, m, processSize, n):
 				elif blockSize[bestIdx] > blockSize[j]:
 					bestIdx = j
 
-				# If we could find a block for
+		# If we could find a block for
 		# current process
 		if bestIdx != -1:
 			# allocate block j to p[i] process
@@ -69,4 +110,3 @@ def bestFit(blockSize, m, processSize, n):
 			print(allocation[i] + 1)
 		else:
 			print("Not Allocated")
-
