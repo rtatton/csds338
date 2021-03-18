@@ -1,14 +1,14 @@
 import itertools
 from collections import abc
-from typing import Any, NoReturn, Tuple, Union
+from typing import Any, NoReturn, Optional, Union
 
 import attr
 import numpy as np
 from attr import validators
 
-NoneType = type(None)
 Block = int
-Blocks = Union[Tuple[np.ndarray, np.ndarray], np.ndarray]
+Blocks = Union[Block, np.ndarray]
+NO_BLOCK = None
 
 
 # noinspection PyUnresolvedReferences
@@ -46,12 +46,27 @@ class Memory(abc.Sized):
 		indices = np.flatnonzero(~self.available)
 		return (indices, self.blocks[indices]) if with_pages else indices
 
+	def get_first_fit(self, size: Block) -> Optional[Block]:
+		return min(np.where(self.pages >= size)[0], default=None)
+
+	def get_best_fit(self, size: Block) -> Optional[Block]:
+		if (valid := np.where(self.pages >= size)[0]).size > 0:
+			fit = np.argmin(self.pages[valid] - size)
+		else:
+			fit = None
+		return fit
+
+	def defragment(self) -> NoReturn:
+		"""Defragments the memory."""
+		self.pages = self.pages[self.available.argsort()]
+
 	@property
 	def num_allocated(self) -> int:
 		"""Returns the number of memory blocks allocated."""
 		return self.available.size - self.num_free
 
 	def get_free(self, *, with_pages: bool = False) -> Blocks:
+		"""Returns the indices of the free blocks and optional page values."""
 		indices = np.flatnonzero(self.available)
 		return (indices, self.blocks[indices]) if with_pages else indices
 
@@ -73,9 +88,11 @@ class Memory(abc.Sized):
 		return 0 if num_free == 0 else (num_free - max_free) / num_free
 
 	def allocate(self, b: Block) -> NoReturn:
+		"""Allocates a block of memory."""
 		self.available[b] = False
 
 	def free(self, b: Block) -> NoReturn:
+		"""Frees a block of memory."""
 		self.available[b] = True
 
 	def sample_page(self) -> int:
