@@ -1,16 +1,22 @@
+import enum
 from collections import abc
-from typing import (
-	Any, Callable, Tuple, Union)
+from typing import Any, Tuple
 
 import attr
 import numpy as np
 from attr import validators
 
 import memory
+from memory import Block, Blocks, NO_BLOCK
 
-Block = int
-Blocks = Union[Block, Tuple[Block, ...]]
-Request = Callable[[], Blocks]
+
+class RequestType(enum.Enum):
+	ALLOCATE = 'allocate'
+	FREE = 'free'
+	ME_TOO = 'me_too'
+
+
+Request = Tuple[Blocks, RequestType]
 
 
 # noinspection PyUnresolvedReferences
@@ -39,20 +45,23 @@ class RequestStream(abc.Iterator, abc.Callable):
 		return next(self)
 
 	def __next__(self) -> Request:
-		return self.sample_request()
+		return self.request()
 
-	def sample_request(self) -> Request:
+	def request(self) -> Request:
 		"""A discrete probability distribution over request types.
 
 		Returns:
-			A request callable.
+			The result of a request and the corresponding request type.
 		"""
 		if not self.memory.num_allocated:
-			request = self.allocate
+			request = (self.allocate(), RequestType.ALLOCATE)
 		elif not self.memory.num_free:
-			request = self.free
+			request = (self.free(), RequestType.FREE)
 		else:
-			request = self._rng.choice((self.allocate, self.free, self.me_too))
+			request = self._rng.choice((
+				(self.allocate(), RequestType.ALLOCATE),
+				(self.free(), RequestType.FREE),
+				(self.me_too(), RequestType.ME_TOO)))
 		return request
 
 	def allocate(self) -> Block:
@@ -134,6 +143,3 @@ class RequestStream(abc.Iterator, abc.Callable):
 			block = block[0]
 		return block
 
-
-if __name__ == '__main__':
-	print()
