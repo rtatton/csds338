@@ -18,7 +18,7 @@ StdOut = Optional[Union[TextIO, io.TextIOBase]]
 
 # noinspection PyUnresolvedReferences
 @attr.s(slots=True, frozen=True)
-class Algorithm(abc.ABC, collections.abc.Callable):
+class Allocator(abc.ABC, collections.abc.Callable):
 	"""
 	Attributes:
 		memory: Contains all blocks of memory
@@ -41,7 +41,7 @@ class Algorithm(abc.ABC, collections.abc.Callable):
 		pass
 
 
-class FirstFit(Algorithm):
+class FirstFit(Allocator):
 
 	def __init__(self, *args, **kwargs):
 		super(FirstFit, self).__init__(*args, **kwargs)
@@ -56,7 +56,7 @@ class FirstFit(Algorithm):
 			self.memory.allocate(fit)
 
 
-class BestFit(Algorithm):
+class BestFit(Allocator):
 
 	def __init__(self, *args, **kwargs):
 		super(BestFit, self).__init__(*args, **kwargs)

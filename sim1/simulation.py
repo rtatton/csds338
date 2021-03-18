@@ -3,7 +3,7 @@ from typing import NoReturn
 import attr
 from attr import validators
 
-import algorithm
+import allocation
 import requests
 
 
@@ -12,12 +12,12 @@ class Simulator:
 	request_stream = attr.ib(
 		type=requests.RequestStream,
 		validator=validators.instance_of(requests.RequestStream))
-	algorithm = attr.ib(
-		type=algorithm.Algorithm,
-		validator=validators.instance_of(algorithm.Algorithm))
+	allocator = attr.ib(
+		type=allocation.Allocator,
+		validator=validators.instance_of(allocation.Allocator))
 
 	def run(self, steps: int = 100) -> NoReturn:
 		"""Runs the simulation"""
 		for _ in range(steps):
 			request = self.request_stream()
-			self.algorithm(request)
+			self.allocator(request)
