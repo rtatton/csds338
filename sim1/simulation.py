@@ -9,7 +9,7 @@ import requests
 
 @attr.s(slots=True, frozen=True)
 class Simulator:
-	request_stream = attr.ib(
+	stream = attr.ib(
 		type=requests.RequestStream,
 		validator=validators.instance_of(requests.RequestStream))
 	allocator = attr.ib(
@@ -18,6 +18,5 @@ class Simulator:
 
 	def run(self, steps: int = 100) -> NoReturn:
 		"""Runs the simulation"""
-		for _ in range(steps):
-			request = self.request_stream()
+		for _, request in zip(range(steps), self.stream):
 			self.allocator(request)
