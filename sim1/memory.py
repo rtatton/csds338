@@ -58,7 +58,9 @@ class Memory(abc.Sized):
 
 	def defragment(self) -> NoReturn:
 		"""Defragments the memory."""
-		self.pages = self.pages[self.available.argsort()]
+		indices = self.available.argsort()
+		self.available = self.available[indices]
+		self.pages = self.pages[indices]
 
 	@property
 	def num_allocated(self) -> int:
