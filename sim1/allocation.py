@@ -51,8 +51,11 @@ class FirstFit(Allocator):
 		requested, request_type = request
 		if request_type == requests.RequestType.FREE:
 			self.memory.free(requested)
-		else:
+		elif request_type == requests.RequestType.ALLOCATE:
 			fit = self.memory.get_first_fit(requested)
+			self.memory.allocate(fit)
+		else:
+			fit = self.memory.get_first_fit(requested[0])
 			self.memory.allocate(fit)
 
 
@@ -66,8 +69,11 @@ class BestFit(Allocator):
 		requested, request_type = request
 		if request_type == requests.RequestType.FREE:
 			self.memory.free(requested)
+		elif request_type == requests.RequestType.ALLOCATE:
+			fit = self.memory.get_first_fit(requested)
+			self.memory.allocate(fit)
 		else:
-			fit = self.memory.get_best_fit(requested)
+			fit = self.memory.get_first_fit(requested[0])
 			self.memory.allocate(fit)
 
 	def _print(self, request_type: str, params: Any) -> NoReturn:
