@@ -58,10 +58,11 @@ class RequestStream(abc.Iterator, abc.Callable):
 		elif not self.memory.num_free:
 			request = (self.free(), RequestType.FREE)
 		else:
-			request = self._rng.choice((
+			request = self._rng.choice(np.array((
 				(self.allocate(), RequestType.ALLOCATE),
 				(self.free(), RequestType.FREE),
-				(self.me_too(), RequestType.ME_TOO)))
+				(self.me_too(), RequestType.ME_TOO)),
+				dtype=object))
 		return request
 
 	def allocate(self) -> Block:
@@ -142,4 +143,3 @@ class RequestStream(abc.Iterator, abc.Callable):
 		elif n == 1:
 			block = block[0]
 		return block
-
