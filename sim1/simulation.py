@@ -4,6 +4,7 @@ import attr
 from attr import validators
 
 import allocation
+import memory
 import requests
 
 
@@ -20,3 +21,11 @@ class Simulator:
 		"""Runs the simulation"""
 		for _, request in zip(range(steps), self.stream):
 			self.allocator(request)
+
+
+if __name__ == '__main__':
+	mem = memory.Memory(5)
+	stream = requests.RequestStream(mem)
+	allocator = allocation.FirstFit(mem)
+	simulator = Simulator(stream, allocator)
+	simulator.run()
