@@ -2,7 +2,7 @@ import abc
 import collections.abc
 import io
 import sys
-from typing import Any, NoReturn, Optional, TextIO, Union
+from typing import Iterable, NoReturn, Optional, TextIO, Union
 
 import attr
 from attr import validators
@@ -31,14 +31,46 @@ class Allocator(abc.ABC, collections.abc.Callable):
 		type=StdOut,
 		default=sys.stdout,
 		validator=validators.instance_of((io.TextIOBase, TextIO, NoneType)),
+		kw_only=True,
 		repr=False)
 
 	def __call__(self, request: Request) -> NoReturn:
-		self.call(request)
+		result = self.call(request)
+		self.print_result(request, result)
 
 	@abc.abstractmethod
-	def call(self, request: Request) -> NoReturn:
+	def call(self, request: Request) -> requests.Result:
 		pass
+
+	def print_result(
+			self,
+			request: requests.Request,
+			result: requests.Result) -> NoReturn:
+		if self.std_out:
+			rtype = self.format_rtype(request.rtype)
+			pages = result.pages
+			if isinstance(block := request.block, Iterable):
+				params = f'blocks={tuple(b for b in block)}, pages={pages}'
+			else:
+				params = f'block={block}, pages={pages}'
+			print(f'Request: {rtype}({params})', file=self.std_out)
+			if result.success:
+				block = f'block={result.block}'
+				start = f'start={result.start}'
+				pages = f'pages={result.pages}'
+				before = f'before={result.before}'
+				after = f'after={result.after}'
+				params = f'{block}, {start}, {pages}, {before}, {after}'
+				result = f'SuccessfulRequest({params})'
+			else:
+				result = 'FailedRequest'
+			print(f'Result: {result}', file=self.std_out)
+
+	@staticmethod
+	def format_rtype(rtype: requests.RequestType) -> str:
+		rtype = str(rtype.value)
+		rtype = (s.capitalize() for s in rtype.split('_'))
+		return ''.join(rtype)
 
 
 class FirstFit(Allocator):
@@ -46,17 +78,29 @@ class FirstFit(Allocator):
 	def __init__(self, *args, **kwargs):
 		super(FirstFit, self).__init__(*args, **kwargs)
 
-	def call(self, request: Request) -> NoReturn:
+	def call(self, request: requests.Request) -> requests.Result:
 		# TODO Add defragmentation
-		requested, request_type = request
-		if request_type == requests.RequestType.FREE:
-			self.memory.free(requested)
-		elif request_type == requests.RequestType.ALLOCATE:
-			fit = self.memory.get_first_fit(requested)
-			self.memory.allocate(fit)
+		block, rtype = request.block, request.rtype
+		if rtype == requests.RequestType.FREE:
+			self.memory.free(block)
+			fit = block
+			start, before, after = None, None, None
+		elif rtype == requests.RequestType.ALLOCATE:
+			fit = self.memory.first_fit(block)
+			start = self.memory.get_page_address(fit)
+			before, after = self.memory.allocate(fit)
 		else:
-			fit = self.memory.get_first_fit(requested[0])
-			self.memory.allocate(fit)
+			to_allocate, _ = block
+			fit = self.memory.first_fit(to_allocate)
+			start = self.memory.get_page_address(fit)
+			before, after = self.memory.allocate(fit)
+		return requests.Result(
+			success=True,
+			block=fit,
+			pages=self.memory.get_num_pages(fit),
+			start=start,
+			before=before,
+			after=after)
 
 
 class BestFit(Allocator):
@@ -64,23 +108,26 @@ class BestFit(Allocator):
 	def __init__(self, *args, **kwargs):
 		super(BestFit, self).__init__(*args, **kwargs)
 
-	def call(self, request: Request) -> NoReturn:
+	def call(self, request: requests.Request) -> requests.Result:
 		# TODO Add defragmentation
-		requested, request_type = request
-		if request_type == requests.RequestType.FREE:
-			self.memory.free(requested)
-		elif request_type == requests.RequestType.ALLOCATE:
-			fit = self.memory.get_first_fit(requested)
-			self.memory.allocate(fit)
+		block, rtype = request.block, request.rtype
+		if rtype == requests.RequestType.FREE:
+			self.memory.free(block)
+			fit = block
+			start, before, after = None, None, None
+		elif rtype == requests.RequestType.ALLOCATE:
+			fit = self.memory.best_fit(block)
+			start = self.memory.get_page_address(fit)
+			before, after = self.memory.allocate(fit)
 		else:
-			fit = self.memory.get_first_fit(requested[0])
-			self.memory.allocate(fit)
-
-	def _print(self, request_type: str, params: Any) -> NoReturn:
-		if self.std_out:
-			print(f'{request_type}({params})', file=self.std_out)
-
-
-if __name__ == '__main__':
-	m = memory.Memory(10)
-	f = FirstFit(m)
+			to_allocate, _ = block
+			fit = self.memory.best_fit(to_allocate)
+			start = self.memory.get_page_address(fit)
+			before, after = self.memory.allocate(fit)
+		return requests.Result(
+			success=True,
+			block=fit,
+			pages=self.memory.get_num_pages(fit),
+			start=start,
+			before=before,
+			after=after)

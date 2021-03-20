@@ -1,13 +1,21 @@
 import itertools
+import sys
 from collections import abc
-from typing import Any, NoReturn, Optional, Union
+from typing import Any, NoReturn, Optional, Tuple, Union
 
 import attr
 import numpy as np
 from attr import validators
 
-Block = int
-Blocks = Union[Block, np.ndarray]
+BlockTypes = (int, np.integer)
+Block = Union[int, np.integer]
+Page = Union[int, np.integer]
+PageTypes = (int, np.integer)
+Blocks = Union[int, np.integer, np.ndarray]
+BlocksTypes = (*BlockTypes, Tuple, np.ndarray)
+Pages = Union[int, np.integer, np.ndarray]
+PagesTypes = (*PageTypes, np.ndarray, Tuple)
+Contiguous = Optional[Tuple[np.ndarray, ...]]
 NO_BLOCK = None
 
 
@@ -24,7 +32,7 @@ class Memory(abc.Sized):
 		_rng: Random generator.
 		"""
 	blocks = attr.ib(
-		type=int, default=100, validator=validators.instance_of(int))
+		type=int, default=100, validator=validators.instance_of(BlockTypes))
 	seed = attr.ib(type=Any, default=None, repr=False)
 	pages = attr.ib(type=np.ndarray, init=False)
 	available = attr.ib(type=np.ndarray, init=False)
@@ -44,14 +52,30 @@ class Memory(abc.Sized):
 
 	def get_allocated(self, *, with_pages: bool = False) -> Blocks:
 		indices = np.flatnonzero(~self.available)
-		return (indices, self.blocks[indices]) if with_pages else indices
+		return (indices, self.pages[indices]) if with_pages else indices
 
-	def get_first_fit(self, size: Block) -> Optional[Block]:
-		return min(np.where(self.pages >= size)[0], default=None)
+	def get_page_address(self, b: Block) -> Page:
+		return (np.cumsum(self.pages) - self.pages[0])[b]
 
-	def get_best_fit(self, size: Block) -> Optional[Block]:
-		if (valid := np.where(self.pages >= size)[0]).size > 0:
-			fit = np.argmin(self.pages[valid] - size)
+	def get_num_pages(self, b: Block) -> Page:
+		return self.pages[b]
+
+	def first_fit(self, b: Block) -> Optional[Block]:
+		"""Returns the first fitting block of memory."""
+		choices = self.available * (self.pages >= self.pages[b])
+		return min(np.flatnonzero(choices), default=None)
+
+	def best_fit(self, b: Block) -> Optional[Block]:
+		"""Returns the best fitting block of memory.
+
+		References:
+			https://stackoverflow.com/questions/55769522/how-to-find-maximum
+			-negative-and-minimum-positive-number-in-a-numpy-array
+		"""
+		diff = self.pages - self.pages[b] + 1
+		choices = diff * self.available * (self.pages >= self.pages[b])
+		if choices.size > 0:
+			fit = np.where(choices > 0, choices, np.inf).argmin()
 		else:
 			fit = None
 		return fit
@@ -70,7 +94,7 @@ class Memory(abc.Sized):
 	def get_free(self, *, with_pages: bool = False) -> Blocks:
 		"""Returns the indices of the free blocks and optional page values."""
 		indices = np.flatnonzero(self.available)
-		return (indices, self.blocks[indices]) if with_pages else indices
+		return (indices, self.pages[indices]) if with_pages else indices
 
 	@property
 	def num_free(self) -> int:
@@ -89,9 +113,46 @@ class Memory(abc.Sized):
 		num_free = self.num_free
 		return 0 if num_free == 0 else (num_free - max_free) / num_free
 
-	def allocate(self, b: Block) -> NoReturn:
-		"""Allocates a block of memory."""
+	def allocate(self, b: Block) -> Tuple[Page, Optional[Pages]]:
+		"""Allocates a block of memory.
+
+		Returns:
+			The size of the contiguous chunk of memory prior to allocating
+			and, if the chunk is more than one block, the resulting two
+			chunks of contiguous memory after allocating.
+		"""
+		contiguous = self.contiguous()
+		chunk = np.argmax([b in sub for sub in contiguous])
+		if (selected := contiguous[chunk]).size > 1:
+			pages = self.pages[selected]
+			idx = np.flatnonzero(selected == b)
+			idx = idx.item()
+			before = sum(pages)
+			after = (sum(pages[:idx]), sum(pages[idx + 1:]))
+		else:
+			idx = selected.item()
+			before, after = self.pages[idx], None
 		self.available[b] = False
+		return before, after
+
+	def contiguous(
+			self, *, with_pages: bool = False
+	) -> Union[Contiguous, Tuple[Contiguous, Pages]]:
+		"""Returns the indices (and pages) of contiguous blocks of free memory.
+
+		References:
+			https://stackoverflow.com/questions/7352684/how-to-find-the-groups
+			-of-consecutive-elements-in-a-numpy-array
+		"""
+		available = np.flatnonzero(self.available)
+		split_at = np.flatnonzero(np.diff(available) != 1)
+		contiguous = np.split(available, split_at + 1)
+		if len(contiguous) == 1 and contiguous[0].size == 0:
+			contiguous = None
+		if with_pages and contiguous:
+			pages = np.array([sum(self.pages[c]) for c in contiguous])
+			contiguous = (tuple(contiguous), pages)
+		return contiguous
 
 	def free(self, b: Block) -> NoReturn:
 		"""Frees a block of memory."""
