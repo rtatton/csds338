@@ -1,5 +1,4 @@
 import itertools
-import sys
 from collections import abc
 from typing import Any, NoReturn, Optional, Tuple, Union
 
