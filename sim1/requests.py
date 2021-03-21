@@ -6,9 +6,9 @@ import attr
 import numpy as np
 from attr import validators
 
-import memory
-from memory import (
-	Block, BlockTypes, BlocksTypes, Blocks, NO_BLOCK, Page, PageTypes, Pages,
+import storage
+from storage import (
+	Block, BlockTypes, Blocks, BlocksTypes, NO_BLOCK, Page, PageTypes, Pages,
 	PagesTypes)
 
 OPTIONAL_PAGE_VALIDATOR = validators.optional(
@@ -85,7 +85,7 @@ class RequestStream(abc.Iterator, abc.Callable):
 		_rng: Random generator.
 	"""
 	memory = attr.ib(
-		type=memory.Memory, validator=validators.instance_of(memory.Memory))
+		type=storage.Memory, validator=validators.instance_of(storage.Memory))
 	seed = attr.ib(type=Any, default=None, kw_only=True, repr=False)
 	_rng = attr.ib(type=np.random.Generator, init=False, repr=False)
 
@@ -108,11 +108,11 @@ class RequestStream(abc.Iterator, abc.Callable):
 		Returns:
 			The requested block, corresponding pages, and request type.
 		"""
-		if not self.memory.num_allocated:
+		if not self.memory.num_blocks_allocated:
 			block, pages = self.allocate()
 			request = Request(
 				block=block, pages=pages, rtype=RequestType.ALLOCATE)
-		elif not self.memory.num_free:
+		elif not self.memory.num_blocks_free:
 			block, pages = self.free()
 			request = Request(block=block, pages=pages, rtype=RequestType.FREE)
 		else:

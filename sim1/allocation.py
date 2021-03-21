@@ -7,7 +7,7 @@ from typing import Iterable, NoReturn, Optional, TextIO, Union
 import attr
 from attr import validators
 
-import memory
+import storage
 import requests
 from requests import Request
 
@@ -26,7 +26,7 @@ class Allocator(abc.ABC, collections.abc.Callable):
 			results will not be written to any stream.
 	"""
 	memory = attr.ib(
-		type=memory.Memory, validator=validators.instance_of(memory.Memory))
+		type=storage.Memory, validator=validators.instance_of(storage.Memory))
 	std_out = attr.ib(
 		type=StdOut,
 		default=sys.stdout,
@@ -79,12 +79,10 @@ class FirstFit(Allocator):
 		super(FirstFit, self).__init__(*args, **kwargs)
 
 	def call(self, request: requests.Request) -> requests.Result:
-		# TODO Add defragmentation
 		block, rtype = request.block, request.rtype
 		if rtype == requests.RequestType.FREE:
 			self.memory.free(block)
-			fit = block
-			start, before, after = None, None, None
+			fit, start, before, after = block, None, None, None
 		elif rtype == requests.RequestType.ALLOCATE:
 			fit = self.memory.first_fit(block)
 			start = self.memory.get_page_address(fit)
@@ -109,7 +107,6 @@ class BestFit(Allocator):
 		super(BestFit, self).__init__(*args, **kwargs)
 
 	def call(self, request: requests.Request) -> requests.Result:
-		# TODO Add defragmentation
 		block, rtype = request.block, request.rtype
 		if rtype == requests.RequestType.FREE:
 			self.memory.free(block)

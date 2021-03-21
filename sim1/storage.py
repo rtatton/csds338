@@ -1,5 +1,7 @@
+import abc
+import collections.abc
 import itertools
-from collections import abc
+import numbers
 from typing import Any, NoReturn, Optional, Tuple, Union
 
 import attr
@@ -20,7 +22,7 @@ NO_BLOCK = None
 
 # noinspection PyUnresolvedReferences
 @attr.s(slots=True)
-class Memory(abc.Sized):
+class Memory(collections.abc.Sized):
 	"""A stream of memory block requests.
 
 	Attributes:
@@ -86,9 +88,14 @@ class Memory(abc.Sized):
 		self.pages = self.pages[indices]
 
 	@property
-	def num_allocated(self) -> int:
+	def num_blocks_allocated(self) -> int:
 		"""Returns the number of memory blocks allocated."""
-		return self.available.size - self.num_free
+		return self.available.size - self.num_blocks_free
+
+	@property
+	def num_pages_allocated(self) -> int:
+		"""Returns the number of memory pages allocated."""
+		return self.total_pages - self.num_pages_free
 
 	def get_free(self, *, with_pages: bool = False) -> Blocks:
 		"""Returns the indices of the free blocks and optional page values."""
@@ -96,20 +103,34 @@ class Memory(abc.Sized):
 		return (indices, self.pages[indices]) if with_pages else indices
 
 	@property
-	def num_free(self) -> int:
+	def num_blocks_free(self) -> int:
 		"""Returns the number of memory blocks free."""
 		return sum(self.available)
 
 	@property
-	def fragmented(self) -> float:
+	def num_pages_free(self) -> int:
+		"""Returns the number of memory pages free."""
+		return sum(self.pages[self.available])
+
+	@property
+	def total_pages(self) -> int:
+		"""Returns the total number of pages in memory."""
+		return sum(self.pages)
+
+	def fragmented(self, *, as_pages: bool = False) -> float:
 		"""Returns the percentage of memory fragmentation.
 
 		References:
 			http://stackoverflow.com/questions/4586972/ddg#4587077
 		"""
-		groups = itertools.groupby(self.available)
-		max_free = max(sum(1 for _ in g) for _, g in groups)
-		num_free = self.num_free
+		if as_pages:
+			num_free = self.num_pages_free
+			_, pages = self.contiguous(with_pages=True)
+			max_free = max(pages)
+		else:
+			num_free = self.num_blocks_free
+			groups = self.contiguous()
+			max_free = max(g.size for g in groups)
 		return 0 if num_free == 0 else (num_free - max_free) / num_free
 
 	def allocate(self, b: Block) -> Tuple[Page, Optional[Pages]]:
@@ -124,13 +145,11 @@ class Memory(abc.Sized):
 		chunk = np.argmax([b in sub for sub in contiguous])
 		if (selected := contiguous[chunk]).size > 1:
 			pages = self.pages[selected]
-			idx = np.flatnonzero(selected == b)
-			idx = idx.item()
+			idx = np.flatnonzero(selected == b).item()
 			before = sum(pages)
 			after = (sum(pages[:idx]), sum(pages[idx + 1:]))
 		else:
-			idx = selected.item()
-			before, after = self.pages[idx], None
+			before, after = self.pages[selected.item()], None
 		self.available[b] = False
 		return before, after
 
@@ -146,9 +165,7 @@ class Memory(abc.Sized):
 		available = np.flatnonzero(self.available)
 		split_at = np.flatnonzero(np.diff(available) != 1)
 		contiguous = np.split(available, split_at + 1)
-		if len(contiguous) == 1 and contiguous[0].size == 0:
-			contiguous = None
-		if with_pages and contiguous:
+		if with_pages:
 			pages = np.array([sum(self.pages[c]) for c in contiguous])
 			contiguous = (tuple(contiguous), pages)
 		return contiguous
@@ -164,3 +181,40 @@ class Memory(abc.Sized):
 	def reset(self) -> NoReturn:
 		"""Frees all memory blocks."""
 		self.available = np.ones(self.blocks, dtype=bool)
+
+
+# noinspection PyUnresolvedReferences
+@attr.s(slots=True, frozen=True)
+class Defragmentor(abc.ABC, collections.abc.Callable):
+	"""
+	Attributes:
+		memory: Contains all blocks of memory
+	"""
+	memory = attr.ib(type=Memory, validator=validators.instance_of(Memory))
+
+	def __call__(self, *args, **kwargs):
+		self.call(*args, **kwargs)
+
+	@abc.abstractmethod
+	def call(self, *args, **kwargs) -> NoReturn:
+		pass
+
+
+@attr.s(slots=True, frozen=True)
+class ThresholdDefragmentor(Defragmentor):
+	threshold = attr.ib(
+		type=float, default=0.5, validator=validators.instance_of(
+			numbers.Real))
+
+	@threshold.validator
+	def _check_threshold(self, attribute, value):
+		if not 0 <= value <= 1:
+			raise ValueError(
+				f"'threshold must be 0-1, inclusive; got {value}'")
+
+	def __attrs_post_init__(self):
+		super(ThresholdDefragmentor, self).__init__(self.memory)
+
+	def call(self, *args, **kwargs) -> NoReturn:
+		if self.memory.fragmented() >= self.threshold:
+			self.memory.defragment()
