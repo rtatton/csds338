@@ -32,7 +32,7 @@ class DiningPhilosophers:
 	def get_right(self, p) -> bool:
 		"""Check if the chopstick to the right of a philosopher is present."""
 		chops = self.chopsticks
-		return chops[p][1] if self.saturated else (chops[p][0] - 1) % p
+		return chops[p][1] if self.saturated else (chops[p] - 1) % p
 
 	def pick_up(self, *c, atomic: bool = False) -> bool:
 		"""Pick up one or more chopsticks.
