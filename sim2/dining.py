@@ -16,7 +16,7 @@ class DiningPhilosophers:
 			a chopstick exists between every pair of philosophers.
 	"""
 	philosophers = attr.ib(type=int, validator=validators.instance_of(int))
-	chopsticks = attr.ib(type=np.ndarray, converter=np.array, init=False)
+	chopsticks = attr.ib(type=np.ndarray, init=False)
 	saturated = attr.ib(type=bool, default=False, kw_only=True)
 
 	def __attrs_post_init__(self):
