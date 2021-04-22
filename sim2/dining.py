@@ -4,35 +4,28 @@ from attr import validators
 
 
 @attr.s(slots=True)
-class DiningPhilosophers:
+class DiningTable:
 	"""
 	Attributes:
-		philosophers: Number of philosophers at the dining table.
+		n_chairs: Number of chairs at the dining table.
 		chopsticks: Boolean array indicating which chopsticks are available.
-			Note that when saturated is False, indexing is performed clockwise
-			such that the ith chopstick is to the left (from the perspective
-			of sitting at the table) of the ith philosopher.
-		saturated: If True, each philosopher has two chopsticks. Otherwise,
-			a chopstick exists between every pair of philosophers.
+			Indexing is performed clockwise such that the ith chopstick is to
+			the left (from the perspective of sitting at the table) of the
+			ith philosopher.
 	"""
-	philosophers = attr.ib(type=int, validator=validators.instance_of(int))
+	n_chairs = attr.ib(type=int, validator=validators.instance_of(int))
 	chopsticks = attr.ib(type=np.ndarray, init=False)
-	saturated = attr.ib(type=bool, default=False, kw_only=True)
 
 	def __attrs_post_init__(self):
-		if self.saturated:
-			self.chopsticks = np.ones((self.philosophers, 2), dtype=bool)
-		else:
-			self.chopsticks = np.ones(self.philosophers, dtype=bool)
+		self.chopsticks = np.ones(self.n_chairs, dtype=bool)
 
 	def get_left(self, p) -> bool:
 		"""Check if the chopstick to the left of a philosopher is present."""
-		return self.chopsticks[p][0] if self.saturated else self.chopsticks[p]
+		return self.chopsticks[p]
 
 	def get_right(self, p) -> bool:
 		"""Check if the chopstick to the right of a philosopher is present."""
-		chops = self.chopsticks
-		return chops[p][1] if self.saturated else (chops[p] - 1) % p
+		return (self.chopsticks[p] - 1) % p
 
 	def pick_up(self, *c, atomic: bool = False) -> bool:
 		"""Pick up one or more chopsticks.
@@ -73,8 +66,3 @@ class DiningPhilosophers:
 			self.chopsticks[c] = True
 			failed = False
 		return not failed
-
-
-if __name__ == '__main__':
-	dp = DiningPhilosophers(3)
-	print(dp)
