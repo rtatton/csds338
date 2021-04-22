@@ -2,6 +2,8 @@ import attr
 import numpy as np
 from attr import validators
 
+import philosopher
+
 
 @attr.s(slots=True)
 class DiningTable:
@@ -15,9 +17,12 @@ class DiningTable:
 	"""
 	n_chairs = attr.ib(type=int, validator=validators.instance_of(int))
 	chopsticks = attr.ib(type=np.ndarray, init=False)
+	philosophers = attr.ib(
+		type=philosopher.Philosopher, init=False, repr=False)
 
 	def __attrs_post_init__(self):
 		self.chopsticks = np.ones(self.n_chairs, dtype=bool)
+		self.philosophers = [philosopher.Philosopher()]
 
 	def get_left(self, p) -> bool:
 		"""Check if the chopstick to the left of a philosopher is present."""
