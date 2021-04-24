@@ -34,15 +34,12 @@ class DiningTable:
 
 	def get_right(self, p: int, return_idx: bool = False) -> bool:
 		"""Check if the chopstick to the right of a philosopher is present."""
-		if(p==0):
-			idx=1
-		else:
-			idx = (p + 1) % p
+		idx = (p - 1) % len(self.chopsticks)
 		result = self.chopsticks[idx]
 		return (result, idx) if return_idx else result
 
-	def pick_up(self, p: int) -> bool:
-		"""Attempts to have the philosopher pick up a chopstick.
+	def pick_up(self, p: int, any_chop: bool=False) -> bool:
+		"""Attempts to have the philosopher pick up a chopstick. If successful, changes chopstick[index] to False and Philosopher.right/left to True
 			Args:
 				p: Index of philosopher picking up the chopstick
 
@@ -50,24 +47,34 @@ class DiningTable:
 				True if the operation succeeded and False otherwise.
 			"""
 		phil = self.philosophers[p]
-		left_on_table, left_idx = self.get_left(p, return_idx=True)
-		right_on_table, right_idx = self.get_right(p, return_idx=True)
-		if result := left_on_table:
-			self.chopsticks[left_idx] = False
-			if phil.state == philosopher.PhilosopherState.WAITING:
-				phil.state = philosopher.PhilosopherState.EATING
+		if not(any_chop):
+			left_on_table, left_idx = self.get_left(p, return_idx=True)
+			right_on_table, right_idx = self.get_right(p, return_idx=True)
+			if result := left_on_table and phil.left_chop == -1:
+				self.chopsticks[left_idx] = False
+				phil.left_chop = left_idx
+			elif result := right_on_table and phil.right_chop == -1:
+				self.chopsticks[right_idx] = False
+				phil.right_chop = right_idx
+			return result
+		else:
+			free = np.flatnonzero(self.chopsticks)
+			if free.size > 0:
+				chop = random.choice(free)
+				self.chopsticks[chop] = False
+				result = True
+				if phil.right_chop == -1:
+					phil.right_chop = chop
+				else:
+					phil.left_chop = chop
 			else:
-				phil.state = philosopher.PhilosopherState.THINKING
-		elif result := right_on_table:
-			self.chopsticks[right_idx] = False
-			if phil.state == philosopher.PhilosopherState.WAITING:
-				phil.state = philosopher.PhilosopherState.EATING
-			else:
-				phil.state = philosopher.PhilosopherState.THINKING
-		return result
+				result = False
+			return result
+
+		
 
 	def put_down(self, p: int) -> bool:
-		"""Attempts to have the philosopher pick up a chopstick.
+		"""Attempts to have the philosopher pick up a chopstick. If successful, changes chopstick[index] to True and Philosopher.right/left to False
 			Args:
 				p: Index of philosopher picking up the chopstick
 
@@ -75,11 +82,11 @@ class DiningTable:
 				True if the operation succeeded and False otherwise.
 		"""
 		phil = self.philosophers[p]
-		left_on_table, left_idx = self.get_left(p, return_idx=True)
-		right_on_table, right_idx = self.get_right(p, return_idx=True)
-		if result := not left_on_table:
-			self.chopsticks[left_idx] = True
-		elif result := not right_on_table:
-			self.chopsticks[right_idx] = False
+		if result := phil.left_chop >= 0:
+			self.chopsticks[phil.left_chop] = True
+			phil.left_chop = -1
+		elif result := phil.right_chop >= 0:
+			self.chopsticks[phil.right_chop] = True
+			phil.right_chop = -1
 		return result
 			
