@@ -1,6 +1,10 @@
+import random
+
 import attr
 import numpy as np
 from attr import validators
+
+import philosopher
 
 
 @attr.s(slots=True)
@@ -15,54 +19,66 @@ class DiningTable:
 	"""
 	n_chairs = attr.ib(type=int, validator=validators.instance_of(int))
 	chopsticks = attr.ib(type=np.ndarray, init=False)
+	philosophers = attr.ib(
+		type=philosopher.Philosopher, init=False, repr=False)
 
 	def __attrs_post_init__(self):
 		self.chopsticks = np.ones(self.n_chairs, dtype=bool)
+		self.philosophers = [
+			philosopher.Philosopher() for _ in range(self.n_chairs)]
 
-	def get_left(self, p) -> bool:
+	def get_left(self, p: int, return_idx: bool = False) -> bool:
 		"""Check if the chopstick to the left of a philosopher is present."""
-		return self.chopsticks[p]
+		result = self.chopsticks[p]
+		return (result, p) if return_idx else result
 
-	def get_right(self, p) -> bool:
+	def get_right(self, p: int, return_idx: bool = False) -> bool:
 		"""Check if the chopstick to the right of a philosopher is present."""
-		return (self.chopsticks[p] - 1) % p
+		result = (self.chopsticks[p] - 1) % p
+		idx = (p - 1) % p
+		return (result, idx) if return_idx else result
 
-	def pick_up(self, *c, atomic: bool = False) -> bool:
-		"""Pick up one or more chopsticks.
+	def pick_up(self, p: int) -> bool:
+		"""Attempts to have the philosopher pick up a chopstick.
 			Args:
-				*c: Chopsticks to pick up.
-				atomic: If True, no operation will complete if any of the
-					chopsticks are already picked up. Otherwise, all specified
-					chopsticks will be picked up, regardless if they are
-					already picked up.
+				p: Index of philosopher picking up the chopstick
 
 			Returns:
 				True if the operation succeeded and False otherwise.
 			"""
-		if atomic:
-			if not (failed := not np.all(self.chopsticks[c])):
-				self.chopsticks[c] = False
-		else:
-			self.chopsticks[c] = False
-			failed = False
-		return not failed
+		phil = self.philosophers[p]
+		left_on_table, left_idx = self.get_left(p, return_idx=True)
+		right_on_table, right_idx = self.get_right(p, return_idx=True)
+		if result := left_on_table:
+			self.chopsticks[left_idx] = False
+			if phil.state == philosopher.PhilosopherState.WAITING_LEFT:
+				phil.state = philosopher.PhilosopherState.EATING
+			else:
+				phil.state = philosopher.PhilosopherState.THINKING
+		elif result := right_on_table:
+			self.chopsticks[right_idx] = False
+			if phil.state == philosopher.PhilosopherState.WAITING_RIGHT:
+				phil.state = philosopher.PhilosopherState.EATING
+			else:
+				phil.state = philosopher.PhilosopherState.THINKING
+		return result
 
-	def put_down(self, *c, atomic: bool = False) -> bool:
-		"""Put down one or more chopsticks.
-		Args:
-			*c: Chopsticks to put down.
-			atomic: If True, no operation will complete if any of the
-				chopsticks are already put down. Otherwise, all specified
-				chopsticks will be put down, regardless if they are already
-				put down.
+	def put_down(self, p: int) -> bool:
+		"""Attempts to have the philosopher pick up a chopstick.
+			Args:
+				p: Index of philosopher picking up the chopstick
 
-		Returns:
-			True if the operation succeeded and False otherwise.
+			Returns:
+				True if the operation succeeded and False otherwise.
 		"""
-		if atomic:
-			if not (failed := np.any(self.chopsticks[c])):
-				self.chopsticks[c] = True
-		else:
-			self.chopsticks[c] = True
-			failed = False
-		return not failed
+		phil = self.philosophers[p]
+		if result := phil.state == philosopher.PhilosopherState.EATING:
+			# TODO Do we want to specify which chopstick to put down?
+			if random.choice((True, False)):
+				_, idx = self.get_left(p, return_idx=True)
+				self.chopsticks[idx] = True
+			else:
+				_, idx = self.get_right(p, return_idx=True)
+				self.chopsticks[idx] = True
+			phil.state = philosopher.PhilosopherState.THINKING
+		return result

@@ -21,5 +21,9 @@ class Philosopher:
 	"""
 	state = attr.ib(
 		type=PhilosopherState,
-		validator=validators.instance_of(PhilosopherState))
-	time = attr.ib(type=int, validator=validators.instance_of(int))
+		validator=validators.instance_of(PhilosopherState),
+		default=PhilosopherState.THINKING)
+	time = attr.ib(
+		type=int,
+		validator=validators.instance_of(int),
+		default=0)
