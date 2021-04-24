@@ -98,8 +98,8 @@ class Simulation:
         # then it is in deadlock
         deadlock = True
         for philosopher in dp.philosophers:
-            if philosopher.state == PhilosopherState.THINKING or philosopher.state == PhilosopherState.EATIN
-                G:
+            if philosopher.state == PhilosopherState.THINKING or \
+                    philosopher.state == PhilosopherState.EATING:
                 deadlock = False
         return deadlock
 
