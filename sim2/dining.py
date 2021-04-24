@@ -3,6 +3,7 @@ from typing import Any
 import attr
 import numpy as np
 from attr import validators
+import random
 
 import philosopher
 
