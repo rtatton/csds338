@@ -4,6 +4,7 @@ import random
 import dining
 from philosopher import PhilosopherState
 from metrics import Metrics
+import numpy as np
 
 @attr.s(slots=True)
 class Simulation:
@@ -27,11 +28,13 @@ class Simulation:
         """ runs simulation of dining philosophers """
         dp = dining.DiningTable(self.n)
         metrics = Metrics(dp) #initiate metrics class as well that takes in Dining Philosophers instance?
+        result = []
 
         #------- MAIN SIM LOOP --------------
         for t in range(self.time):
             #print("time step: ", t)
-            
+            result.append([p.state for p in dp.philosophers])
+
             #loop through the philosophers
             for philosopher, phil_id in zip(dp.philosophers, range(len(dp.philosophers))):
                 #print("Initial", phil_id, ":", philosopher)
@@ -73,6 +76,7 @@ class Simulation:
                 self.deadlock = False
 
         metrics.print_metrics()
+        return np.array(result)
 
 
     def get_eating_time(self, function, i) -> int:
