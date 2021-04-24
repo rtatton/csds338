@@ -1,5 +1,6 @@
 import attr
 from attr import validators
+import random
 import dining
 from philosopher import PhilosopherState
 #from .metrics import Metrics
@@ -33,13 +34,13 @@ class Simulation:
             
             #loop through the philosophers
             for philosopher, phil_id in zip(dp.philosophers, range(len(dp.philosophers))):
-                print("Initial", phil_id, ":", philosopher)
+                #print("Initial", phil_id, ":", philosopher)
                 if(philosopher.time > 0):
                     philosopher.time = philosopher.time - 1
                 elif(philosopher.time == 0):
                     if(philosopher.state==PhilosopherState.THINKING):
                         #try to pick up 
-                        if(dp.pick_up(phil_id)):
+                        if(self.get_hungry(dp.n_chairs) and dp.pick_up(phil_id, phil_id==3)):
                             philosopher.state=PhilosopherState.WAITING
 
                     elif(philosopher.state==PhilosopherState.EATING):
@@ -50,7 +51,7 @@ class Simulation:
 
                     elif(philosopher.state==PhilosopherState.WAITING):
                         #try to pick up another chopstick, if successful, then change state to EATING, otherwise drop chopstick and change to THINKING
-                        if(dp.pick_up(phil_id)):
+                        if(dp.pick_up(phil_id, phil_id==3)):
                             philosopher.state=PhilosopherState.EATING
                             philosopher.time=self.get_eating_time(self.eat_function, phil_id)
                         else:
@@ -58,9 +59,12 @@ class Simulation:
                             philosopher.state=PhilosopherState.THINKING
                         
                 print("Final", phil_id, ":", philosopher)
+
             print(dp.chopsticks)
+            print(self.deadlock)
 
             if(self.check_deadlock(dp)):
+                self.deadlock = True
                 self.recover_from_deadlock(dp, self.recovery)
 
 
@@ -78,16 +82,18 @@ class Simulation:
 
         return t 
         
-    def get_hungry(self) -> bool:
-        """ returns if a philosopher is hungry or not"""
+    def get_hungry(self, n) -> bool:
+        """ returns if a philosopher is hungry or not -- incrementally decreases with more philosophers"""
+        if random.randint(0, 2) == 0:
+            return True
 
     def check_deadlock(self, dp) -> bool:
         """checks if simulation is in deadlock, and returns true if so"""
         #loop through all philosophers and if all are holding one chopstick, then it is in deadlock
-        deadlock = False
-        for philosopher in dp.philosopers:
+        deadlock = True
+        for philosopher in dp.philosophers:
             if philosopher.state == PhilosopherState.THINKING or philosopher.state == PhilosopherState.EATING:
-                deadlock = True
+                deadlock = False
         return deadlock
                 
 
@@ -97,8 +103,11 @@ class Simulation:
         for philosopher in dp.philosophers:
             philosopher.state = PhilosopherState.THINKING
             philosopher.time = recovery
+        for x in range(len(dp.philosophers)):
+            dp.put_down(x)
+            dp.put_down(x)
 
 if __name__== '__main__':
-    sim = Simulation(5, 10, 1, 1)
+    sim = Simulation(5, 10, 2, 1)
     print(sim)
     sim.run_simulation()
