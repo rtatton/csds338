@@ -11,10 +11,13 @@ class Simulation:
     Attributes:
         n: number of philosophers present in simulation
         time: time intervals the simulation will run for
-        deadlock: boolean value that shows whether the simulation is currently in 
+        deadlock: boolean value that shows whether the simulation is
+        currently in
             a place of deadlock or not
-        recovery: int time t that details time after deadlock to reset simulation
-        eat_function: int value that selects type of function used to calculate eating
+        recovery: int time t that details time after deadlock to reset
+        simulation
+        eat_function: int value that selects type of function used to
+        calculate eating
             time based on the philosopher i
     """
     n = attr.ib(type=int, validator=validators.instance_of(int))
@@ -29,9 +32,10 @@ class Simulation:
         #initiate metrics class as well that takes in Dining Philosophers instance?
 
         #------- MAIN SIM LOOP --------------
+        result = []
         for t in range(self.time):
             print("time step: ", t)
-            
+            result = result.append([p.state for p in dp.philosophers])
             #loop through the philosophers
             for philosopher, phil_id in zip(dp.philosophers, range(len(dp.philosophers))):
                 #print("Initial", phil_id, ":", philosopher)
@@ -39,7 +43,7 @@ class Simulation:
                     philosopher.time = philosopher.time - 1
                 elif(philosopher.time == 0):
                     if(philosopher.state==PhilosopherState.THINKING):
-                        #try to pick up 
+                        # try to pick up
                         if(self.get_hungry(dp.n_chairs) and dp.pick_up(phil_id, phil_id==3)):
                             philosopher.state=PhilosopherState.WAITING
 
@@ -57,7 +61,7 @@ class Simulation:
                         else:
                             dp.put_down(phil_id)
                             philosopher.state=PhilosopherState.THINKING
-                        
+
                 print("Final", phil_id, ":", philosopher)
 
             print(dp.chopsticks)
@@ -66,36 +70,39 @@ class Simulation:
             if(self.check_deadlock(dp)):
                 self.deadlock = True
                 self.recover_from_deadlock(dp, self.recovery)
-
+        return result
 
     def get_eating_time(self, function, i) -> int:
         """ returns the time intervals t that a philosopher will eat for.
-                t is a function of each individual philosopher i. 
+                t is a function of each individual philosopher i.
                 function allows simulation to select different function
         """
         t = 0
-        if function==1: 
-            t = i*i + 1
-        elif function==2:
-            t= i*i*i + 1
-        #these are example functions, can be changed
+        if function == 1:
+            t = i * i + 1
+        elif function == 2:
+            t = i * i * i + 1
+        # these are example functions, can be changed
 
-        return t 
-        
+        return t
+
     def get_hungry(self, n) -> bool:
-        """ returns if a philosopher is hungry or not -- incrementally decreases with more philosophers"""
+        """ returns if a philosopher is hungry or not -- incrementally
+        decreases with more philosophers"""
         if random.randint(0, 2) == 0:
             return True
 
     def check_deadlock(self, dp) -> bool:
         """checks if simulation is in deadlock, and returns true if so"""
-        #loop through all philosophers and if all are holding one chopstick, then it is in deadlock
+        # loop through all philosophers and if all are holding one chopstick,
+        # then it is in deadlock
         deadlock = True
         for philosopher in dp.philosophers:
-            if philosopher.state == PhilosopherState.THINKING or philosopher.state == PhilosopherState.EATING:
+            if philosopher.state == PhilosopherState.THINKING or philosopher.state == PhilosopherState.EATIN
+                G:
                 deadlock = False
         return deadlock
-                
+
 
     def recover_from_deadlock(self, dp, recovery) -> int:
         """ if simulation becomes is in deadlock returns time before resetting """
