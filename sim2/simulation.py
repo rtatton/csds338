@@ -35,7 +35,7 @@ class Simulation:
         result = []
         for t in range(self.time):
             print("time step: ", t)
-            result = result.append([p.state for p in dp.philosophers])
+            result.append([p.state for p in dp.philosophers])
             #loop through the philosophers
             for philosopher, phil_id in zip(dp.philosophers, range(len(dp.philosophers))):
                 #print("Initial", phil_id, ":", philosopher)
