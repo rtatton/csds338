@@ -7,7 +7,8 @@ import philosopher
 
 State = philosopher.PhilosopherState
 states = (State.THINKING, State.EATING, State.WAITING)
-indices = {State.THINKING: 1, State.EATING: 2, State.WAITING: 3}
+state_to_idx = {State.THINKING: 1, State.EATING: 2, State.WAITING: 3}
+idx_to_state = {1: State.THINKING, 2: State.EATING, 3: State.WAITING}
 colors = {
 	State.WAITING: 'tomato',
 	State.THINKING: 'deepskyblue',
@@ -15,9 +16,10 @@ colors = {
 
 
 def to_numpy(seqs: Sequence[Sequence[State]]):
-	seqs = np.array([[indices[s] for s in seq] for seq in seqs])
+	seqs = np.array([[state_to_idx[s] for s in seq] for seq in seqs])
 	return np.array([
-		[np.where(seq == s, s, 0) for seq in seqs] for s in states])
+		[np.where(seq == state_to_idx[s], state_to_idx[s], 0) for s in states]
+		for seq in seqs])
 
 
 def event_plot(events: Sequence[Sequence[State]], save_as: str):
@@ -29,7 +31,7 @@ def event_plot(events: Sequence[Sequence[State]], save_as: str):
 					x=(t, t + 1),
 					y1=(0, 0),
 					y2=(1, 1),
-					color=colors[col])
+					color=colors[idx_to_state[col]])
 
 	events = to_numpy(events)
 	fig, axes = plt.subplots(events.shape[0], 1)
@@ -43,5 +45,5 @@ def event_plot(events: Sequence[Sequence[State]], save_as: str):
 			ax.set_xticks([])
 		plot_phil(ax, phil)
 	legend = [lines.Line2D([0], [0], color=colors[s], lw=4) for s in states]
-	axes[0].legend(legend, [s.value for s in states], bbox_to_anchor=(1.3, 3))
-	plt.savefig(save_as, dpi=400)
+	plt.legend(legend, [s.value for s in states], bbox_to_anchor=(1.3, 3))
+	plt.savefig(save_as, dpi=400, bbox_inches='tight')
