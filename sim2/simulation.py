@@ -3,7 +3,7 @@ from attr import validators
 import random
 import dining
 from philosopher import PhilosopherState
-#from .metrics import Metrics
+from metrics import Metrics
 
 @attr.s(slots=True)
 class Simulation:
@@ -26,16 +26,17 @@ class Simulation:
     def run_simulation(self):
         """ runs simulation of dining philosophers """
         dp = dining.DiningTable(self.n)
-        #initiate metrics class as well that takes in Dining Philosophers instance?
+        metrics = Metrics(dp) #initiate metrics class as well that takes in Dining Philosophers instance?
 
         #------- MAIN SIM LOOP --------------
         for t in range(self.time):
-            print("time step: ", t)
+            #print("time step: ", t)
             
             #loop through the philosophers
             for philosopher, phil_id in zip(dp.philosophers, range(len(dp.philosophers))):
                 #print("Initial", phil_id, ":", philosopher)
                 if(philosopher.time > 0):
+                        
                     philosopher.time = philosopher.time - 1
                 elif(philosopher.time == 0):
                     if(philosopher.state==PhilosopherState.THINKING):
@@ -54,18 +55,24 @@ class Simulation:
                         if(dp.pick_up(phil_id, phil_id==3)):
                             philosopher.state=PhilosopherState.EATING
                             philosopher.time=self.get_eating_time(self.eat_function, phil_id)
-                        else:
-                            dp.put_down(phil_id)
-                            philosopher.state=PhilosopherState.THINKING
+                        #else:
+                        #    dp.put_down(phil_id)
+                        #    philosopher.state=PhilosopherState.THINKING
                         
-                print("Final", phil_id, ":", philosopher)
+                #print("Final", phil_id, ":", philosopher)
 
-            print(dp.chopsticks)
-            print(self.deadlock)
+            #print(dp.chopsticks)
+            #print(self.deadlock)
+
+            metrics.run_metrics(dp)
 
             if(self.check_deadlock(dp)):
                 self.deadlock = True
+                metrics.increase_deadlock()
                 self.recover_from_deadlock(dp, self.recovery)
+                self.deadlock = False
+
+        metrics.print_metrics()
 
 
     def get_eating_time(self, function, i) -> int:
@@ -84,7 +91,7 @@ class Simulation:
         
     def get_hungry(self, n) -> bool:
         """ returns if a philosopher is hungry or not -- incrementally decreases with more philosophers"""
-        if random.randint(0, 2) == 0:
+        if random.randint(1, 100) < 70:
             return True
 
     def check_deadlock(self, dp) -> bool:
@@ -108,6 +115,6 @@ class Simulation:
             dp.put_down(x)
 
 if __name__== '__main__':
-    sim = Simulation(5, 10, 2, 1)
+    sim = Simulation(5, 100000, 3, 1)
     print(sim)
     sim.run_simulation()
