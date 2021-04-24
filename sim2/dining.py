@@ -25,7 +25,7 @@ class DiningTable:
 	def __attrs_post_init__(self):
 		self.chopsticks = np.ones(self.n_chairs, dtype=bool)
 		self.philosophers = [
-			philosopher.Philosopher() for _ in range(self.n_chairs)]
+			philosopher.Philosopher(philosopher.PhilosopherState.THINKING, 0) for _ in range(self.n_chairs)]
 
 	def get_left(self, p: int, return_idx: bool = False) -> bool:
 		"""Check if the chopstick to the left of a philosopher is present."""
@@ -34,8 +34,11 @@ class DiningTable:
 
 	def get_right(self, p: int, return_idx: bool = False) -> bool:
 		"""Check if the chopstick to the right of a philosopher is present."""
-		result = (self.chopsticks[p] - 1) % p
-		idx = (p - 1) % p
+		if(p==0):
+			idx=1
+		else:
+			idx = (p + 1) % p
+		result = self.chopsticks[idx]
 		return (result, idx) if return_idx else result
 
 	def pick_up(self, p: int) -> bool:
@@ -51,13 +54,13 @@ class DiningTable:
 		right_on_table, right_idx = self.get_right(p, return_idx=True)
 		if result := left_on_table:
 			self.chopsticks[left_idx] = False
-			if phil.state == philosopher.PhilosopherState.WAITING_LEFT:
+			if phil.state == philosopher.PhilosopherState.WAITING:
 				phil.state = philosopher.PhilosopherState.EATING
 			else:
 				phil.state = philosopher.PhilosopherState.THINKING
 		elif result := right_on_table:
 			self.chopsticks[right_idx] = False
-			if phil.state == philosopher.PhilosopherState.WAITING_RIGHT:
+			if phil.state == philosopher.PhilosopherState.WAITING:
 				phil.state = philosopher.PhilosopherState.EATING
 			else:
 				phil.state = philosopher.PhilosopherState.THINKING
@@ -72,13 +75,11 @@ class DiningTable:
 				True if the operation succeeded and False otherwise.
 		"""
 		phil = self.philosophers[p]
-		if result := phil.state == philosopher.PhilosopherState.EATING:
-			# TODO Do we want to specify which chopstick to put down?
-			if random.choice((True, False)):
-				_, idx = self.get_left(p, return_idx=True)
-				self.chopsticks[idx] = True
-			else:
-				_, idx = self.get_right(p, return_idx=True)
-				self.chopsticks[idx] = True
-			phil.state = philosopher.PhilosopherState.THINKING
+		left_on_table, left_idx = self.get_left(p, return_idx=True)
+		right_on_table, right_idx = self.get_right(p, return_idx=True)
+		if result := not left_on_table:
+			self.chopsticks[left_idx] = True
+		elif result := not right_on_table:
+			self.chopsticks[right_idx] = False
 		return result
+			
