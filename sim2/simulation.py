@@ -125,5 +125,4 @@ if __name__== '__main__':
     sim = Simulation(5, 100, 3, 1)
     print(sim)
     result = sim.run_simulation()
-    #visuals.event_plot(result.T, 'event_plot.png')
-
+    visuals.event_plot(result.T, 'event_plot.png')
