@@ -33,7 +33,7 @@ def event_plot(events: Sequence[Sequence[State]], save_as: str):
 					y2=(1, 1),
 					color=colors[idx_to_state[col]])
 
-	events = to_numpy(events)
+	events:np.ndarray = to_numpy(events)
 	fig, axes = plt.subplots(events.shape[0], 1)
 	axes[-1].set_xlabel('Time')
 	axes[0].set_title('Dining Philosopher States')
